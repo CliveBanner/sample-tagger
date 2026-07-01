@@ -5,7 +5,7 @@ from .train import run_train
 from .predict import run_predict
 from .report import run_report
 from .cluster import run_cluster
-
+from .pipeline import run_pipeline
 def main():
     ap = argparse.ArgumentParser(description="Machine Learning pipeline for sample-tagger")
     subparsers = ap.add_subparsers(dest="command", required=True)
@@ -32,6 +32,10 @@ def main():
     p_clu.add_argument("db", help="Path to samples.db")
     p_clu.add_argument("--size", type=int, default=0, help="Target avg samples per cluster (default 40)")
 
+    # Pipeline
+    p_pipe = subparsers.add_parser("pipeline", help="Run full pipeline (export, train, predict, cluster)")
+    p_pipe.add_argument("db", help="Path to samples.db")
+
     args = ap.parse_args()
 
     if args.command == "export":
@@ -44,6 +48,8 @@ def main():
         run_report(args)
     elif args.command == "cluster":
         run_cluster(args)
+    elif args.command == "pipeline":
+        run_pipeline(args)
     else:
         ap.print_help()
         sys.exit(1)
