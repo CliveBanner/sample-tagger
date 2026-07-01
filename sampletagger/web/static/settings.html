@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Settings — Sample Tagger</title>
+<link href="/static/app.css" rel="stylesheet"/></head><body class="page-settings">
+<header><h1>⚙ Settings</h1>
+<a href="/">◂ Dashboard</a>
+<a href="/map">🗺 Map</a>
+</header>
+<main>
+<div class="group">
+<h2>Library</h2>
+<div class="field">
+<label>Library path</label>
+<input id="library_path" type="text"/>
+</div>
+</div>
+<div class="group">
+<h2>Stage 1 — Discover</h2>
+<p style="font-size:12px;color:var(--dim);margin:0 0 12px">Walk the filesystem, register new files, mark deleted ones. Extracts path hints for free — no audio decoding.</p>
+<div class="field">
+<label>Trust DB</label>
+<div class="chk-row" style="margin:0">
+<input id="trust_db" type="checkbox"/>
+<label for="trust_db">Skip mtime/size checks on known files</label>
+</div>
+<span class="hint">Skips a stat() call per file. Safe and much faster on network/cloud mounts where stat() is slow. Only new files are fully checked.</span>
+</div>
+<div class="field">
+<label>Force walk</label>
+<div class="chk-row" style="margin:0">
+<input id="no_cache" type="checkbox"/>
+<label for="no_cache">Ignore cached file list</label>
+</div>
+<span class="hint">The scanner caches the file list to avoid slow pcloud walks. Enable this once after adding new files, then turn it off again.</span>
+</div>
+</div>
+<div class="group">
+<h2>Stage 2 — Label</h2>
+<p style="font-size:12px;color:var(--dim);margin:0 0 12px">Compute classifier results for indexed files. Each classifier writes to its own column — results are independent and never overwrite each other automatically.</p>
+<div class="field">
+<label>Workers</label>
+<input id="workers" max="24" min="1" type="number"/>
+<span class="hint">Parallel processes. PANNs loads ~1 GB of model weights per worker.</span>
+</div>
+<div class="field">
+<label>Classifiers</label>
+<div>
+<div class="chk-row" style="margin:2px 0">
+<input id="label_path" type="checkbox"/>
+<label for="label_path"><b>Path</b> — folder/filename heuristics (instant, no audio decode)</label>
+</div>
+<div class="chk-row" style="margin:2px 0">
+<input id="label_audio" type="checkbox"/>
+<label for="label_audio"><b>Audio</b> — spectral analysis via librosa (medium speed)</label>
+</div>
+<div class="chk-row" style="margin:2px 0">
+<input id="label_panns" type="checkbox"/>
+<label for="label_panns"><b>PANNs</b> — CNN14 neural net (slow, also produces the map embedding)</label>
+</div>
+</div>
+<span class="hint">Only files missing that column are processed. Already-labeled files are skipped unless Redo is set.</span>
+</div>
+<div class="field">
+<label>GPU Python</label>
+<input id="gpu_python" placeholder="e.g. /home/phlp/sample-tagger/venv_gpu/bin/python" type="text"/>
+<span class="hint">Path to a CUDA-enabled Python interpreter for the Label stage. Leave blank to use the default (CPU). Used only when PANNs is selected.</span>
+</div>
+<div class="field">
+<label>Redo</label>
+<input id="redo" placeholder="e.g. panns  or  all" type="text"/>
+<span class="hint">Comma-separated classifiers to force-overwrite (e.g. <code>panns</code> after a model update, or <code>all</code> to redo everything). Leave blank to only fill missing labels.</span>
+</div>
+<div class="field">
+<label>Limit</label>
+<input id="limit" min="0" type="number"/>
+<span class="hint">Stop after this many files per run (0 = no limit). Useful for test runs.</span>
+</div>
+</div>
+<div class="group">
+<h2>Analysis thresholds</h2>
+<div class="field">
+<label>Analyze seconds</label>
+<input id="analyze_seconds" max="300" min="1" step="0.5" type="number"/>
+<span class="hint">decode up to N s per file for spectral analysis</span>
+</div>
+<div class="field">
+<label>Loop min duration (s)</label>
+<input id="loop_min_sec" max="10" min="0.1" step="0.1" type="number"/>
+<span class="hint">shorter clips → always oneshot</span>
+</div>
+<div class="field">
+<label>Loop bar tolerance</label>
+<input id="loop_bar_tolerance" max="0.5" min="0" step="0.01" type="number"/>
+<span class="hint">fraction of bar; how close to a beat grid counts as aligned</span>
+</div>
+<div class="field">
+<label>Harmonic ratio (tonal)</label>
+<input id="harmonic_ratio_tonal" max="1" min="0" step="0.01" type="number"/>
+<span class="hint">HPSS energy ratio threshold for tonal vs percussive</span>
+</div>
+<div class="field">
+<label>BPM min</label>
+<input id="bpm_min" max="120" min="20" type="number"/>
+</div>
+<div class="field">
+<label>BPM max</label>
+<input id="bpm_max" max="400" min="80" type="number"/>
+</div>
+<div class="field">
+<label>PANNs min duration (s)</label>
+<input id="panns_min_duration" max="5" min="0" step="0.1" type="number"/>
+<span class="hint">skip PANNs classification on clips shorter than this</span>
+</div>
+</div>
+<div class="group">
+<h2>Projection (UMAP / PCA)</h2>
+<div class="field">
+<label>Method</label>
+<select id="proj_method">
+<option value="auto">auto (umap if installed, else pca)</option>
+<option value="umap">umap</option>
+<option value="pca">pca</option>
+</select>
+</div>
+<div class="field">
+<label>UMAP n_neighbors</label>
+<input id="proj_n_neighbors" max="200" min="2" type="number"/>
+<span class="hint">local neighbourhood size; larger = more global structure</span>
+</div>
+<div class="field">
+<label>UMAP min_dist</label>
+<input id="proj_min_dist" max="1" min="0" step="0.01" type="number"/>
+<span class="hint">tightness of clusters (0 = compact, 1 = spread)</span>
+</div>
+</div>
+<div class="group">
+<h2>Machine Learning</h2>
+<p style="font-size:12px;color:var(--dim);margin:0 0 12px">Train the instrument classifier on human labels and apply predictions to all samples. Runs: export embeddings → train LogisticRegression → write predictions to DB.</p>
+<div id="mlLastTrained" style="font-size:12px;color:var(--dim);margin-bottom:10px"></div>
+<div class="status-box" id="mlStatusBox">
+<span class="badge" id="mlBadge">…</span>
+<span id="mlInfo" style="margin-left:8px;color:var(--dim)"></span>
+</div>
+<div class="run-row">
+<button disabled="" id="btnML">▶ Run Learning Pipeline</button>
+<button disabled="" id="btnMLStop">■ Stop</button>
+</div>
+<pre class="logbox" id="mlLogBox" style="display:none;margin-top:10px;max-height:200px;overflow-y:auto;white-space:pre-wrap"></pre>
+<div class="msg" id="mlMsg"></div>
+</div>
+<div class="group">
+<h2>Run control</h2>
+<div class="status-box" id="statusBox">
+<span class="badge" id="runBadge">…</span>
+<span id="runInfo" style="margin-left:8px;color:var(--dim)"></span>
+</div>
+<div class="run-row">
+<button id="btnSave">💾 Save config</button>
+<button disabled="" id="btnDiscover">🔍 Discover</button>
+<button disabled="" id="btnLabel">🏷 Label</button>
+<button disabled="" id="btnStop">■ Stop</button>
+</div>
+<div class="msg" id="msg"></div>
+</div>
+</main>
+<script src="/static/settings.js"></script></body></html>

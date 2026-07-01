@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Review Queue</title>
+<link href="/static/app.css" rel="stylesheet"/></head><body class="page-review">
+<header>
+<h1>Review</h1>
+<button id="list-toggle" onclick="openOverlay()">☰ Queue</button>
+<select id="modesel" onchange="loadQueue()">
+<option value="disagree">Classifiers disagree</option>
+<option value="active">Uncertain (active learning)</option>
+<option value="all">All unlabeled</option>
+</select>
+<span id="count"></span>
+<button onclick="loadQueue()">↻ New batch</button>
+<button onclick="openLModal()">⚙ Labels</button>
+<a href="/" style="margin-left:auto">← Dashboard</a>
+<a href="/clusters">Clusters</a>
+<a href="/map">Map</a>
+</header>
+<div id="navbar">
+<button id="nav-prev" onclick="prev()">← Previous</button>
+<button id="nav-skip" onclick="skip()">Skip →</button>
+<span id="pos" class="pos"></span>
+</div>
+<div id="overlay" onclick="closeOverlay()">
+<div id="overlay-panel" onclick="event.stopPropagation()">
+<div id="overlay-hdr"><span id="overlay-count"></span><button onclick="closeOverlay()">✕</button></div>
+<div id="overlay-list"></div>
+</div>
+</div>
+<div id="lmodal" onclick="closeLModal()">
+<div id="lbox" onclick="event.stopPropagation()">
+<h2>Instrument labels</h2>
+<div id="llist"></div>
+<div id="ladd">
+<input id="linput" maxlength="40" onkeydown="if(event.key==='Enter')addLabelUI()" placeholder="new label…"/>
+<button onclick="addLabelUI()">+ Add</button>
+</div>
+<button onclick="closeLModal()" style="align-self:flex-end">Done</button>
+</div>
+</div>
+<div id="wrap">
+<div id="list"></div>
+<div id="detail"><div class="empty">Loading…</div></div>
+</div>
+<div id="toast"></div>
+<script src="/static/review.js"></script></body></html>

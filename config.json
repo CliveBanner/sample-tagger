@@ -1,22 +1,25 @@
 {
   "library_path": "/home/phlp/pcloud/DAW/Samples",
-  "workers": 3,
+  "workers": 4,
   "trust_db": true,
-  "no_cache": false,
-  "label_path": true,
+  "no_cache": true,
+  "label_path": false,
   "label_audio": true,
-  "label_panns": true,
-  "gpu_python": "/home/phlp/sample-tagger/venv_gpu/bin/python",
+  "label_panns": false,
+  "gpu_python": "",
   "redo": "",
   "limit": 0,
-  "analyze_seconds": 30,
+  "analyze_seconds": 30.0,
   "loop_min_sec": 0.8,
   "loop_bar_tolerance": 0.12,
   "harmonic_ratio_tonal": 0.35,
   "bpm_min": 60,
   "bpm_max": 200,
-  "panns_min_duration": 1,
+  "panns_min_duration": 1.0,
   "proj_method": "auto",
   "proj_n_neighbors": 25,
-  "proj_min_dist": 0.12
+  "proj_min_dist": 0.12,
+  "ml": {
+    "weak_weight": 0.007
+  }
 }

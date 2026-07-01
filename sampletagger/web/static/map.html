@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Sample Map</title>
+<link href="/static/app.css" rel="stylesheet"/></head><body class="page-map">
+<header>
+<h1>🗺 Sample Map</h1>
+<a href="/">◂ Dashboard</a>
+<a href="/clusters">🎧 Sonic</a>
+<a href="/review" class="muted" style="font-size:11px" title="manual instrument labeling (legacy)">manual review</a>
+<a href="/settings" style="color:#ae81ff">⚙</a>
+<input id="q" placeholder="search → similar"/>
+<button id="btnLegend" title="show/hide legend">☰ Legend</button>
+<button id="btnSelectMode" title="toggle rect selection mode">▭ Select</button>
+<button id="upd" title="regenerate the 2D layout from all embeddings so far">↻ Update map</button>
+<span class="muted" id="count" style="font-size:11px"></span>
+</header>
+<div id="wrap">
+<div id="stage">
+<canvas id="cv"></canvas>
+<div id="hint">drag · scroll to zoom · click a point</div>
+<div class="legend" id="legend"></div>
+</div>
+<div id="side">
+<h2>Selected</h2><div class="muted" id="sel">tap a point or search</div>
+<audio controls="" id="player" preload="none" style="width:100%;margin-top:8px"></audio>
+<audio id="xplayer" preload="none" style="display:none"></audio>
+<label class="muted" style="display:block;margin-top:3px;font-size:11px">
+<input checked="" id="auto" type="checkbox"/> autoplay</label>
+<div id="labelRow" style="display:none;margin-top:10px;display:flex;gap:6px;align-items:center">
+<select id="labelSel" style="flex:1;background:#1e1f1c;border:1px solid #3e3d32;color:var(--fg);padding:4px 6px;border-radius:4px;font-family:inherit;font-size:12px">
+<option value="">— correct label —</option>
+</select>
+<button disabled="" id="btnLabel" style="white-space:nowrap">✓ Save</button>
+</div>
+<div id="labelMsg" style="font-size:11px;margin-top:3px;color:#a6e22e;min-height:14px"></div>
+<div id="batchPanel" style="display:none;margin-top:10px;background:#272822;padding:8px;border-radius:4px;border:1px solid #49483e">
+  <div id="batchCount" style="margin-bottom:6px;font-weight:bold;color:#f8f8f2">0 selected</div>
+  <div style="display:flex;gap:6px;align-items:center">
+    <select id="batchSel" style="flex:1;background:#1e1f1c;border:1px solid #3e3d32;color:var(--fg);padding:4px;border-radius:4px;font-family:inherit;font-size:12px"></select>
+    <button id="btnBatch" style="white-space:nowrap">Apply</button>
+  </div>
+  <label style="display:block;margin-top:6px;font-size:11px" class="muted">
+    <input type="checkbox" id="batchUnlabeledOnly" checked> only unlabeled
+  </label>
+</div>
+<button disabled="" id="btnSim" style="margin-top:10px;width:100%">🔍 Find similar</button>
+<h2 style="margin-top:10px">Similar</h2><div class="muted" id="hits">—</div>
+</div>
+</div>
+<div id="toast"></div>
+<script src="/static/map.js"></script></body></html>

@@ -5,3 +5,16 @@ data/
 *.log
 *.filelist
 *.proj*
+*.npy
+models/
+*.npz
+*.proj
+run.log
+ml.log
+*.db
+*.db-shm
+*.db-wal
+samples.db.*
+samples.emb.*
+venv/
+*.egg-info/

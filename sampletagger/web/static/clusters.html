@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Sonic Clusters</title>
+<link href="/static/app.css?v=5" rel="stylesheet"/></head><body class="page-review page-clusters">
+<header>
+<h1>🎧 Sonic Clusters</h1>
+<span class="muted" style="font-size:11px">audio-only timbral grouping — no filenames, no instrument labels</span>
+<button onclick="loadFamilies()" style="margin-left:auto">↻ Reload</button>
+<a href="/">Dashboard</a>
+<a href="/map">Map</a>
+</header>
+<div id="player-home">
+<div id="player-wrap">
+<audio id="cplayer" controls preload="auto"></audio>
+<span id="cnow" class="dim">▶ select a sample to preview</span>
+</div>
+</div>
+<div id="wrap">
+<div id="list"></div>
+<div id="detail"><div class="empty">Loading…</div></div>
+</div>
+<div id="toast"></div>
+<script src="/static/clusters.js?v=5"></script></body></html>

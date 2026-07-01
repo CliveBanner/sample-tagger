@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sample-tagger"
+version = "0.1.0"
+description = "Two-stage audio sample classifier and explorer."
+readme = "README.md"
+requires-python = ">=3.9"
+
+dependencies = [
+    "numpy",
+    "librosa",
+    "torch",
+    "panns_inference",
+    "umap-learn",
+    "scikit-learn",
+    "mutagen",
+    "soundfile"
+]
+
+[tool.setuptools.packages.find]
+include = ["sampletagger*"]
+
+[project.scripts]
+sample-tagger = "sampletagger.cli:main"
+sample-tagger-web = "sampletagger.web.server:main"
+sample-tagger-project = "sampletagger.projection:main"
+sample-tagger-ml = "sampletagger.ml.cli:main"
+sample-tagger-migrate = "sampletagger.migrate:main"

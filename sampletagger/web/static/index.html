@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Sample Tagger</title>
+<link href="/static/app.css" rel="stylesheet"/></head><body class="page-index">
+<header><h1>🎛 Sample Tagger</h1><span id="status"></span>
+<span class="muted" id="clock"></span>
+<button onclick="tick()" style="margin-left:auto" title="Refresh stats now">↻ Refresh</button>
+<a href="/clusters" style="color:#a6e22e;text-decoration:none;font-weight:bold">🎧 Sonic</a>
+<a href="/map" style="color:#66d9ef;text-decoration:none;font-weight:bold">🗺 Map ▸</a>
+<a href="/settings" style="color:#ae81ff;text-decoration:none;font-weight:bold">⚙ Settings</a>
+<a href="/review" class="muted" style="text-decoration:none;font-size:11px" title="manual instrument labeling (legacy approach)">✎ manual review</a></header>
+<main id="app"></main>
+<div style="padding:0 20px 20px;max-width:1400px">
+<div class="card" style="grid-column:1/-1">
+<h2>Scan log</h2>
+<pre id="logbox" style="margin:0;font-size:12px;color:#a6e22e;white-space:pre-wrap;word-break:break-all">(loading…)</pre>
+</div></div>
+<footer>auto-refreshes every 4s · reads samples.db live</footer>
+<script src="/static/index.js"></script></body></html>
