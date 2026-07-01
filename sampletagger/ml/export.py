@@ -5,8 +5,7 @@ import numpy as np
 import time
 from ..config import load_config
 from ..constants import DIM
-from ..migrate import emb_sidecar as _emb_sidecar
-
+from .. import embeddings
 def load_ml_cfg(db_dir):
     """Read the [ml] section of config.json next to the DB. A missing file or bad
     JSON falls back to defaults ({}); any other error propagates rather than being
@@ -96,50 +95,23 @@ def run_export(args):
                 "is_val": row[5] or 0
             }
 
-        mat_file, paths_file = _emb_sidecar(args.db)
         t0 = time.time()
-        if os.path.isfile(mat_file) and os.path.isfile(paths_file):
-            # Fast path: load from sidecar (already L2-normalised float16)
-            print(f"  loading from sidecar {mat_file}")
-            with open(paths_file) as f:
-                emb_paths = [line.rstrip("\n") for line in f if line.strip()]
-            emb_mat = np.load(mat_file).astype(np.float32)
-            path_to_row = {p: i for i, p in enumerate(emb_paths)}
-            paths, human, weak_path, weak_panns, label_source, is_val = [], [], [], [], [], []
-            rows_mat = []
-            for p in emb_paths:
-                m = meta.get(p, {})
-                paths.append(p)
-                rows_mat.append(emb_mat[path_to_row[p]])
-                human.append(m.get("human") or "")
-                weak_path.append(m.get("path") or "")
-                weak_panns.append(m.get("panns") or "")
-                label_source.append(m.get("label_source") or "")
-                is_val.append(m.get("is_val", 0))
-            mat = np.array(rows_mat, dtype=np.float32)
-            row_i = len(paths)
-        else:
-            # Slow path: read BLOBs from DB
-            mat = np.empty((n, DIM), dtype=np.float32)
-            paths, human, weak_path, weak_panns, label_source, is_val = [], [], [], [], [], []
-            row_i = 0
-            for p, v in con.execute("SELECT path, vec FROM embeddings WHERE vec IS NOT NULL"):
-                a = np.frombuffer(v, dtype=np.float32)
-                if a.shape[0] == DIM:
-                    mat[row_i] = a
-                    paths.append(p)
-                    m = meta.get(p, {})
-                    human.append(m.get("human") or "")
-                    weak_path.append(m.get("path") or "")
-                    weak_panns.append(m.get("panns") or "")
-                    label_source.append(m.get("label_source") or "")
-                    is_val.append(m.get("is_val", 0))
-                    row_i += 1
-            mat = mat[:row_i]
-            # L2 normalize
-            norms = np.linalg.norm(mat, axis=1, keepdims=True)
-            norms[norms == 0] = 1.0
-            mat /= norms
+        emb_paths, emb_mat = embeddings.load(args.db, dtype=np.float32, mmap=False)
+        
+        path_to_row = {p: i for i, p in enumerate(emb_paths)}
+        paths, human, weak_path, weak_panns, label_source, is_val = [], [], [], [], [], []
+        rows_mat = []
+        for p in emb_paths:
+            m = meta.get(p, {})
+            paths.append(p)
+            rows_mat.append(emb_mat[path_to_row[p]])
+            human.append(m.get("human") or "")
+            weak_path.append(m.get("path") or "")
+            weak_panns.append(m.get("panns") or "")
+            label_source.append(m.get("label_source") or "")
+            is_val.append(m.get("is_val", 0))
+        mat = np.array(rows_mat, dtype=np.float32)
+        row_i = len(paths)
         
         # Convert strings to object arrays
         paths = np.array(paths, dtype=object)

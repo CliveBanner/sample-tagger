@@ -21,14 +21,10 @@ import numpy as np
 from .constants import DIM
 
 
-def emb_sidecar(db_path):
-    """Return (mat_npy_path, paths_txt_path) for the external embedding files."""
-    base = db_path[:-3] if db_path.endswith(".db") else db_path
-    return base + ".emb.npy", base + ".emb.paths"
-
+from .embeddings import sidecar_paths
 
 def cmd_export(db_path, dry_run=False, force=False):
-    mat_file, paths_file = emb_sidecar(db_path)
+    mat_file, paths_file = sidecar_paths(db_path)
     con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
         n = con.execute("SELECT COUNT(*) FROM embeddings WHERE vec IS NOT NULL").fetchone()[0]
@@ -77,7 +73,7 @@ def cmd_export(db_path, dry_run=False, force=False):
 
 
 def cmd_compact(db_path):
-    mat_file, paths_file = emb_sidecar(db_path)
+    mat_file, paths_file = sidecar_paths(db_path)
     if not os.path.isfile(mat_file) or not os.path.isfile(paths_file):
         print("ERROR: sidecar not found — run 'export' first")
         return

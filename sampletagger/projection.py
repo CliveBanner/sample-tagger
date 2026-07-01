@@ -5,33 +5,9 @@ import time
 import numpy as np
 from .constants import DIM
 from .config import cfg
-from .migrate import emb_sidecar as _emb_sidecar
-
+from . import embeddings
 def load_embeddings(db, sample=0):
-    # Embeddings live in the float16 sidecar (samples.emb.npy); the DB `vec`
-    # column is emptied to save space. Prefer the sidecar, fall back to DB blobs.
-    mat_file, paths_file = _emb_sidecar(db)
-    if os.path.isfile(mat_file) and os.path.isfile(paths_file):
-        with open(paths_file) as f:
-            paths = [line.rstrip("\n") for line in f if line.strip()]
-        mat = np.load(mat_file).astype(np.float32)   # (n, DIM), L2-normalised
-        if mat.shape[0] != len(paths):               # guard against a torn pair
-            n = min(mat.shape[0], len(paths))
-            mat, paths = mat[:n], paths[:n]
-    else:
-        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
-        try:
-            rows = con.execute("SELECT path, vec FROM embeddings WHERE vec IS NOT NULL").fetchall()
-        finally:
-            con.close()
-        paths, vecs = [], []
-        for p, v in rows:
-            if v is None or len(v) != DIM * 4:       # skip missing / malformed blobs
-                continue
-            a = np.frombuffer(v, dtype=np.float32)
-            if a.shape[0] == DIM:
-                paths.append(p); vecs.append(a)
-        mat = np.vstack(vecs).astype(np.float32) if vecs else np.zeros((0, DIM), np.float32)
+    paths, mat = embeddings.load(db, dtype=np.float32, mmap=False)
     if sample and mat.shape[0] > sample:
         rng = np.random.default_rng(0)
         sel = rng.choice(mat.shape[0], sample, replace=False)

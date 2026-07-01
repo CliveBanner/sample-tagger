@@ -5,9 +5,7 @@ import json
 import numpy as np
 from .constants import DIM
 
-
-from .migrate import emb_sidecar as _emb_sidecar
-
+from . import embeddings
 class SimIndex:
     def __init__(self, db):
         self.db = db
@@ -17,48 +15,10 @@ class SimIndex:
         self.loaded_at = 0.0
 
     def load(self):
-        mat_file, paths_file = _emb_sidecar(self.db)
-        if os.path.isfile(mat_file) and os.path.isfile(paths_file):
-            # Fast path: memory-mapped float16 sidecar (already L2-normalised)
-            with open(paths_file) as f:
-                paths = [line.rstrip("\n") for line in f if line.strip()]
-            mat = np.load(mat_file, mmap_mode="r")   # float16, zero-copy
-            self.mat = mat
-            self.paths = paths
-            self.idx = {p: i for i, p in enumerate(paths)}
-            self.loaded_at = time.time()
-            return len(paths)
-
-        # Slow path: load BLOB embeddings directly from the DB
-        con = sqlite3.connect(f"file:{self.db}?mode=ro", uri=True)
-        try:
-            n = con.execute("SELECT COUNT(*) FROM embeddings WHERE vec IS NOT NULL").fetchone()[0]
-            if n == 0:
-                self.mat = np.zeros((0, DIM), dtype=np.float16)
-                self.paths = []
-                self.idx = {}
-                self.loaded_at = time.time()
-                return 0
-            mat = np.empty((n, DIM), dtype=np.float32)
-            paths = []
-            row_i = 0
-            for p, v in con.execute("SELECT path, vec FROM embeddings WHERE vec IS NOT NULL"):
-                a = np.frombuffer(v, dtype=np.float32)
-                if a.shape[0] == DIM:
-                    mat[row_i] = a
-                    paths.append(p)
-                    row_i += 1
-        finally:
-            con.close()
-        mat = mat[:row_i]
-        norms = np.linalg.norm(mat, axis=1, keepdims=True)
-        norms[norms == 0] = 1.0
-        mat /= norms
-        self.mat = mat.astype(np.float16)
-        self.paths = paths
-        self.idx = {p: i for i, p in enumerate(paths)}
+        self.paths, self.mat = embeddings.load(self.db, dtype=np.float16, mmap=True)
+        self.idx = {p: i for i, p in enumerate(self.paths)}
         self.loaded_at = time.time()
-        return row_i
+        return len(self.paths)
 
     def ensure(self, max_age=0):
         if self.loaded_at == 0 or (max_age and time.time() - self.loaded_at > max_age):
