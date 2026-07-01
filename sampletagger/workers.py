@@ -3,17 +3,13 @@ from .paths import parse_path_hints
 from .audio import _true_duration, load_audio, harmonic_ratio, classify_instrument_audio
 from .constants import ANALYZE_SECONDS, PANNS_MIN_DURATION, HARMONIC_RATIO_TONAL
 from .panns import _panns_forward
-from .analyze import analyze_file
-from .tags import write_tags
 
 _USE_PANNS = False
-_PANNS_ONLY = False
 _EMBED = False
 _PANNS = None
 _PANNS_LABELS = None
 _DO_AUDIO = False
 _DO_PANNS = False
-_WRITE_TAGS = True
 
 def discover_one(path):
     """Stat one file and extract path hints. No audio I/O."""
@@ -71,21 +67,4 @@ def label_one(path):
         result["status"] = "error"
         result["error"] = f"{type(e).__name__}: {e}"
     return result
-
-def _init_worker(write_tags_flag, use_panns, embed, panns_only=False):
-    global _WRITE_TAGS, _USE_PANNS, _EMBED, _PANNS_ONLY
-    _WRITE_TAGS = write_tags_flag
-    _USE_PANNS = use_panns
-    _EMBED = embed
-    _PANNS_ONLY = panns_only
-
-def process_one(path):
-    a = analyze_file(path)
-    tagged = False
-    if _WRITE_TAGS and a.status == "ok":
-        try:
-            tagged = write_tags(a)
-        except Exception as e:
-            a.error = f"tagwrite: {type(e).__name__}: {e}"
-    return a, tagged
 

@@ -1,7 +1,5 @@
 import sqlite3
 import time
-from .analyze import Analysis
-
 SAMPLE_COLUMNS = {
     "path": "TEXT PRIMARY KEY", "mtime": "REAL", "size": "INTEGER", "duration_s": "REAL",
     "sample_type": "TEXT", "instrument": "TEXT", "tonal": "TEXT", "bpm": "INTEGER", "key": "TEXT",
@@ -47,12 +45,6 @@ def upsert(con, table, row, key="path"):
     con.execute(f"INSERT INTO {table} ({','.join(cols)}) VALUES ({','.join('?'*len(cols))}) "
                 f"ON CONFLICT({key}) DO UPDATE SET {sets}", list(row.values()))
 
-def db_upsert(con, a: Analysis, tagged: bool):
-    row = {c: getattr(a, c) for c in SAMPLE_COLUMNS if hasattr(a, c)}
-    row["tagged"], row["ts"] = int(tagged), time.time()
-    upsert(con, "samples", row)
-    if a.emb is not None:
-        upsert(con, "embeddings", {"path": a.path, "dim": len(a.emb)//4, "vec": a.emb})
 
 def db_discover_upsert(con, path, mtime, size, path_instr):
     """Insert new file or refresh mtime/size. Never overwrites existing labels."""

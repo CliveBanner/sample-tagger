@@ -16,7 +16,6 @@ dependencies = [
     "panns_inference",
     "umap-learn",
     "scikit-learn",
-    "mutagen",
     "soundfile"
 ]
 

@@ -74,8 +74,6 @@ def _panns_forward(y, sr, topk=8):
         return None, None, None
 
 
-def classify_instrument_panns(y, sr):
-    return _panns_forward(y, sr)[0]
 
 def load_head(device):
     from panns_inference import AudioTagging, labels as panns_labels

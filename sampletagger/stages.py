@@ -18,7 +18,7 @@ def gather(root):
             if os.path.splitext(f)[1].lower() in AUDIO_EXTS:
                 yield os.path.join(dp, f)
 
-def stage_relabel_panns(con, args):
+def run_relabel_panns(con, args):
     """Reconstruct the raw PANNs label (panns_label/panns_label_conf) for every
     stored embedding WITHOUT decoding any audio.
 
@@ -97,7 +97,7 @@ def stage_relabel_panns(con, args):
           f"({'dry-run, nothing written' if args.dry_run else 'panns_label updated'})",
           flush=True)
 
-run_relabel_panns = stage_relabel_panns
+
 
 def run_discover(con, args, t0):
     filelist_cache = args.db + ".filelist"

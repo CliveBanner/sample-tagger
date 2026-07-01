@@ -124,7 +124,7 @@ def sim_cmd(args):
         print(f"no sample matching {args.query!r} (index has {n} embeddings)")
         return
     meta = fetch_meta(args.db, [p for p, _ in hits])
-    print(f"query: {matched}\\n({n} embeddings indexed)\\n")
+    print(f"query: {matched}\n({n} embeddings indexed)\n")
     print(f"{'sim':>5s}  {'instr':7s} {'type':7s} {'bpm':>4s} {'key':>4s}  file")
     for p, score in hits:
         m = meta.get(p, {})
