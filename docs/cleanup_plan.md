@@ -27,7 +27,7 @@ order is lowest-risk first. Each phase is self-contained and has a verify step.
 
 ---
 
-## Phase 1 — README (fixes broken build)
+## Phase 1 — README (fixes broken build) (DONE)
 
 `pyproject.toml:11` sets `readme = "README.md"` but no `README.md` exists, so
 `pip install .` / `python -m build` fails.
@@ -50,7 +50,7 @@ order is lowest-risk first. Each phase is self-contained and has a verify step.
    artifacts can never be committed.
 5. **Verify:** `sample-tagger-web` still starts; run/map buttons still work.
 
-## Phase 3 — Fix `stages.py` artifacts
+## Phase 3 — Fix `stages.py` artifacts (DONE)
 
 1. Dedent the bodies of `run_discover` (`stages.py:104`) and `run_label`
    (`stages.py:174`) from 12 spaces to 4.
@@ -90,7 +90,7 @@ Goal: `config.json` (and the settings UI) actually drives analysis; eliminate th
    updates AND a fresh `--stage label` run honors it. Confirm `/api/config` and
    `/api/stats` (`api.py:686`) return the same shape.
 
-## Phase 5 (optional, defer) — decouple web from root stubs
+## Phase 5 (optional, defer) — decouple web from root stubs (DONE)
 
 Only if you want to eventually delete `sample_tagger.py`/`project.py`.
 

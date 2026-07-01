@@ -14,7 +14,7 @@ Critical files: `sampletagger/config.py`, `sampletagger/db.py`, `sampletagger/we
 (and minor: `sampletagger/sim.py`). The web frontend, stages, workers, and analysis logic are
 left alone.
 
-## Part 1 — `config.py`: loop over dataclass fields
+## Part 1 — `config.py`: loop over dataclass fields (DONE)
 
 The seven `cfg.x = float(c.get("x", cfg.x))` lines just restate the dataclass fields with their
 types. Replace with a `fields()` loop that coerces via each field's declared type:
@@ -38,7 +38,7 @@ def load_config(path=None):
 
 Adding a tunable becomes one dataclass line. (~32 → ~16 lines.)
 
-## Part 2 — `db.py`: one source of truth for the `samples` columns
+## Part 2 — `db.py`: one source of truth for the `samples` columns (DONE)
 
 Today the column set lives in `SCHEMA`, in `MIGRATIONS`, and ~4× inside `db_upsert` (insert
 list, placeholders, `ON CONFLICT SET`, value tuple). Collapse to a single ordered dict and
@@ -94,7 +94,7 @@ Three repeating patterns:
    returns a plain object; the dispatcher serializes via `_json`. Routes needing query/body args
    wrap a tiny lambda that pulls them from `req`. Keeps every URL and JSON shape identical.
 
-## Part 4 — De-duplicate config and migration (highest value)
+## Part 4 — De-duplicate config and migration (highest value) (DONE)
 
 `web/api.py` carries its own `DEFAULT_CONFIG` + `load_config`/`save_config` and its own
 `migrate_db()` (`api.py:545`, `ALTER TABLE ... ADD COLUMN`). These shadow `sampletagger/config.py`

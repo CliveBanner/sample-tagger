@@ -12,7 +12,7 @@ Critical files: `sampletagger/web/api.py` (`review_queue`, `build_clusters`,
 
 ## Part A — Label-efficiency (the real bottleneck)
 
-### A1. Review queue re-surfaces already-labeled samples (do first, one-line fix)
+### A1. Review queue re-surfaces already-labeled samples (do first, one-line fix) (DONE)
 
 Every mode in `review_queue` (`api.py:769`+) filters `source != 'human'` but never
 checks `human_instrument`. `label_api` (`api.py:293`) writes `human_instrument` +
@@ -73,7 +73,7 @@ after a predict run.
 
 ## Part B — Compute-efficiency
 
-### B1. `build_clusters` aggregates ~226k rows in Python; cache dies on every label
+### B1. `build_clusters` aggregates ~226k rows in Python; cache dies on every label (DONE)
 
 `build_clusters` (`api.py:362-403`) pulls every clustered row and folds with
 `Counter`/`defaultdict`, while `_CLUSTERS=None` is set on **every**

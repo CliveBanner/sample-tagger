@@ -7,8 +7,6 @@ from .panns import _panns_forward
 
 _USE_PANNS = False
 _EMBED = False
-_PANNS = None
-_PANNS_LABELS = None
 _DO_AUDIO = False
 _DO_PANNS = False
 

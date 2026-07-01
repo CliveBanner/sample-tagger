@@ -74,7 +74,7 @@ path + PANNs agreement and need only spot-checking.
 - Each label writes `human_instrument` (ground truth); class set constrained to `labels.db`.
 - Allow an **"unsure/skip"** so you never inject noisy labels.
 - **Freeze a ~20% validation slice** of human labels (flag in DB), never trained on — this is
-  what gives honest, non-circular accuracy.
+  what gives honest, non-circular accuracy. (DONE)
 
 ---
 
@@ -108,7 +108,7 @@ is CPU and fast (LR trains in seconds; predicting 226k is a matmul).
 3. **`predict.py` — write-back**
    - Score all embeddings → argmax + max prob → write `model_instrument`, `model_conf`,
      `model_version` (new additive columns, same pattern as `panns_label`).
-   - **Final `instrument` resolution policy** (the fusion the project always intended):
+   - **Final `instrument` resolution policy** (the fusion the project always intended) (DONE):
      `human_instrument` > (`model_instrument` if `model_conf ≥ threshold`) > path weak > none,
      setting `source` to `human`/`model`/`path`/`none` accordingly.
    - Threshold: start global ~0.6; move to **per-class** thresholds (reliable classes lower,

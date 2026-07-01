@@ -36,16 +36,19 @@ def _map_scores(scores, labels, topk=8):
     return None, None
 
 
+_PANNS = None
+_PANNS_LABELS = None
+
 def get_panns():
-    from . import workers
-    if workers._PANNS is None:
+    global _PANNS, _PANNS_LABELS
+    if _PANNS is None:
         import torch
         torch.set_num_threads(1)
         from panns_inference import AudioTagging, labels
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        workers._PANNS = AudioTagging(checkpoint_path=None, device=device)
-        workers._PANNS_LABELS = labels
-    return workers._PANNS, workers._PANNS_LABELS
+        _PANNS = AudioTagging(checkpoint_path=None, device=device)
+        _PANNS_LABELS = labels
+    return _PANNS, _PANNS_LABELS
 
 def _panns_forward(y, sr, topk=8):
     """One CNN14 forward pass.
