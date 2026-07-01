@@ -56,9 +56,8 @@ def run_start(stage):
     gpu_py = cfg.get("gpu_python", "").strip()
     py = gpu_py if (stage == "label" and gpu_py and os.path.isfile(gpu_py)) else state.PYTHON
 
-    cmd = [py, "-m", "sampletagger.cli", "--db", state.DB, "-j", str(cfg.get("workers", 5))]
+    cmd = [py, "-m", "sampletagger.cli", stage, "--db", state.DB, "-j", str(cfg.get("workers", 5))]
     if cfg.get("limit"): cmd += ["--limit", str(int(cfg["limit"]))]
-    cmd.append(stage)
 
     if stage == "discover":
         cmd.append(cfg["library_path"])
