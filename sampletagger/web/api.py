@@ -171,12 +171,14 @@ def run_start(stage):
     cfg = load_config()
     gpu_py = cfg.get("gpu_python", "").strip()
     py = gpu_py if (stage == "label" and gpu_py and os.path.isfile(gpu_py)) else PYTHON
-    cmd = [py, "-m", "sampletagger.cli", cfg["library_path"]]
-    cmd += ["--db", DB, "--stage", stage, "-j", str(cfg.get("workers", 5))]
+    cmd = [py, "-m", "sampletagger.cli", "--db", DB, "-j", str(cfg.get("workers", 5))]
+    if cfg.get("limit"): cmd += ["--limit", str(int(cfg["limit"]))]
+    cmd.append(stage)
 
     if stage == "discover":
-        if cfg.get("trust_db"): cmd += ["--trust-db"]
-        if cfg.get("no_cache"): cmd += ["--no-cache"]
+        cmd.append(cfg["library_path"])
+        if cfg.get("trust_db"): cmd.append("--trust-db")
+        if cfg.get("no_cache"): cmd.append("--no-cache")
 
     elif stage == "label":
         classifiers = []
@@ -189,8 +191,6 @@ def run_start(stage):
         redo = cfg.get("redo", "").strip()
         if redo:
             cmd += ["--redo", redo]
-
-    if cfg.get("limit"): cmd += ["--limit", str(int(cfg["limit"]))]
     logf = open(RUNLOG, "a")
     _RUN_PROC = subprocess.Popen(cmd, stdout=logf, stderr=logf)
     return {"ok": True, "pid": _RUN_PROC.pid, "stage": stage}
