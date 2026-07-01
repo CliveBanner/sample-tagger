@@ -1,6 +1,6 @@
 import numpy as np
-from .constants import SR, LOOP_MIN_SEC, LOOP_BAR_TOLERANCE, HARMONIC_RATIO_TONAL, BPM_MIN, BPM_MAX
-
+from .constants import SR
+from .config import cfg
 KRUMHANSL_MAJOR = np.array([6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88])
 KRUMHANSL_MINOR = np.array([6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17])
 NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
@@ -63,14 +63,14 @@ def count_onsets(perc, sr):
 
 
 def classify_loop(duration_s, n_onsets, bpm, hr):
-    if duration_s < LOOP_MIN_SEC:
+    if duration_s < cfg.loop_min_sec:
         return "oneshot"
     bar_aligned = False
     if bpm and bpm > 0:
         bars = (duration_s * bpm / 60.0) / 4.0
         nearest = round(bars)
         if nearest >= 1:
-            bar_aligned = abs(bars - nearest) / nearest <= LOOP_BAR_TOLERANCE
+            bar_aligned = abs(bars - nearest) / nearest <= cfg.loop_bar_tolerance
     if (1.0 - hr) < 0.12 and not bar_aligned:
         return "oneshot"
     if bar_aligned or n_onsets >= 4:

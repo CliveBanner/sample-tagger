@@ -1,7 +1,8 @@
 import os
 from .paths import parse_path_hints
 from .audio import _true_duration, load_audio, harmonic_ratio, classify_instrument_audio
-from .constants import ANALYZE_SECONDS, PANNS_MIN_DURATION, HARMONIC_RATIO_TONAL
+from .constants import SR, DIM, AUDIO_EXTS
+from .config import cfg
 from .panns import _panns_forward
 
 _USE_PANNS = False
@@ -42,14 +43,14 @@ def label_one(path):
         return result
     try:
         duration_s = _true_duration(path)
-        y, sr = load_audio(path, duration=ANALYZE_SECONDS)
+        y, sr = load_audio(path, duration=cfg.analyze_seconds)
         if duration_s is None:
             import librosa
             duration_s = float(librosa.get_duration(y=y, sr=sr))
         if y.size == 0:
             raise ValueError("empty audio")
 
-        if _DO_PANNS and duration_s >= PANNS_MIN_DURATION:
+        if _DO_PANNS and duration_s >= cfg.panns_min_duration:
             inst, conf, emb = _panns_forward(y, sr)
             result["panns_instrument"] = inst
             result["panns_conf"] = conf
@@ -59,7 +60,7 @@ def label_one(path):
             import librosa
             h, p = librosa.effects.hpss(y)
             hr = harmonic_ratio(h, p)
-            is_tonal = hr >= HARMONIC_RATIO_TONAL
+            is_tonal = hr >= cfg.harmonic_ratio_tonal
             result["audio_instrument"] = classify_instrument_audio(
                 y, sr, is_tonal, duration_s)
 
