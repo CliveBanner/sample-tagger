@@ -199,12 +199,25 @@ def review_queue(mode="unified", limit=80):
     if not os.path.exists(state.DB):
         return {"items": [], "total": 0}
         
-    where = "status != 'missing' AND source != 'human' AND (human_instrument IS NULL OR human_instrument='')"
+    params = ()
+    if mode == "gold":
+        try:
+            with open("gold_candidates.txt") as f:
+                paths = [l.strip() for l in f if l.strip()]
+            if not paths:
+                return {"items": [], "total": 0}
+            qs = ",".join("?" * len(paths))
+            where = f"path IN ({qs}) AND (human_instrument IS NULL OR human_instrument='')"
+            params = tuple(paths)
+        except OSError:
+            return {"items": [], "total": 0}
+    else:
+        where = "status != 'missing' AND source != 'human' AND (human_instrument IS NULL OR human_instrument='')"
     
     with state.ro() as con:
         if not con:
             return {"items": [], "total": 0}
-        total = con.execute(f"SELECT COUNT(*) FROM samples WHERE {where}").fetchone()[0]
+        total = con.execute(f"SELECT COUNT(*) FROM samples WHERE {where}", params).fetchone()[0]
         
         query = f"""
         SELECT path, path_instrument, panns_instrument, panns_conf,
@@ -228,7 +241,7 @@ def review_queue(mode="unified", limit=80):
         WHERE rn <= 100
         ORDER BY rn ASC
         """
-        rows = con.execute(query).fetchall()
+        rows = con.execute(query, params).fetchall()
 
     ix = get_sim()
     ix.ensure(max_age=0)

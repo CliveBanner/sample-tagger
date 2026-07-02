@@ -69,7 +69,7 @@ def build_dataset(cache_path, db, valid_classes, cfg):
                 
     return (np.array(X_train), np.array(y_train), np.array(w_train), np.array(train_paths),
             np.array(X_human), np.array(y_human),
-            np.array(X_val), np.array(y_val))
+            np.array(X_val), np.array(y_val), X_all)
 
 def run_train(args):
     db_dir = os.path.dirname(os.path.abspath(args.db))
@@ -86,24 +86,9 @@ def run_train(args):
         
     print(f"Taxonomy: {len(valid_classes)} classes")
     
-    X, y, w, p, X_h, y_h, X_v, y_v = build_dataset(features_path, args.db, valid_classes, cfg)
+    X, y, w, p, X_h, y_h, X_v, y_v, X_all = build_dataset(features_path, args.db, valid_classes, cfg)
     print(f"Training set: {len(X)} samples ({len(X_h)} single human ground-truth)")
     
-    if len(X_h) > 10:
-        print("Running K-Fold CV on single human labels...")
-        try:
-            skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-            y_pred_cv = np.empty_like(y_h)
-            for train_idx, test_idx in skf.split(X_h, y_h):
-                clf_cv = LogisticRegression(solver='lbfgs', 
-                                            max_iter=1000, class_weight='balanced')
-                clf_cv.fit(X_h[train_idx], y_h[train_idx])
-                y_pred_cv[test_idx] = clf_cv.predict(X_h[test_idx])
-            print(classification_report(y_h, y_pred_cv, zero_division=0))
-        except ValueError as e:
-            print(f"Skipping CV: {e}")
-    else:
-        print("Not enough single human labels for CV (<10).")
 
     print("Fitting final model...")
     t0 = time.time()
@@ -128,3 +113,46 @@ def run_train(args):
     }, out_path)
     
     print(f"Saved {out_path} ({model_version})")
+
+    # Calculate metrics
+    macro_f1 = 0.0
+    per_class_f1 = {}
+    if len(X_v) > 0:
+        rep = classification_report(y_v, y_pred_v, zero_division=0, output_dict=True)
+        macro_f1 = rep.get("macro avg", {}).get("f1-score", 0.0)
+        per_class_f1 = {k: v["f1-score"] for k, v in rep.items() if isinstance(v, dict) and k not in ("accuracy", "macro avg", "weighted avg")}
+    
+    threshold = cfg.get("conf_threshold", 0.6)
+    coverage = 0
+    if len(X_all) > 0:
+        y_prob = clf.predict_proba(X_all)
+        coverage = int(np.sum(y_prob.max(axis=1) >= threshold))
+        
+    metrics = {
+        "version": model_version,
+        "macro_f1": macro_f1,
+        "per_class_f1": per_class_f1,
+        f"coverage@{threshold}": coverage,
+        "total_files": len(X_all)
+    }
+    import json
+    metrics_path = os.path.join(db_dir, "models", "metrics.jsonl")
+    with open(metrics_path, "a") as f:
+        f.write(json.dumps(metrics) + "\n")
+        
+
+    if len(X_h) > 10:
+        print("Running K-Fold CV on single human labels...")
+        try:
+            skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+            y_pred_cv = np.empty_like(y_h)
+            for train_idx, test_idx in skf.split(X_h, y_h):
+                clf_cv = LogisticRegression(solver='lbfgs', 
+                                            max_iter=1000, class_weight='balanced')
+                clf_cv.fit(X_h[train_idx], y_h[train_idx])
+                y_pred_cv[test_idx] = clf_cv.predict(X_h[test_idx])
+            print(classification_report(y_h, y_pred_cv, zero_division=0))
+        except ValueError as e:
+            print(f"Skipping CV: {e}")
+    else:
+        print("Not enough single human labels for CV (<10).")
