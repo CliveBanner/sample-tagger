@@ -202,7 +202,7 @@ def review_queue(mode="unified", limit=80):
     params = ()
     if mode == "gold":
         try:
-            with open("gold_candidates.txt") as f:
+            with open(os.path.join(state.HERE, "gold_candidates.txt")) as f:
                 paths = [l.strip() for l in f if l.strip()]
             if not paths:
                 return {"items": [], "total": 0}
