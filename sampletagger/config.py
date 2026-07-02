@@ -1,6 +1,6 @@
 import os
 import json
-from dataclasses import dataclass, fields, asdict
+from dataclasses import dataclass, fields, asdict, field
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -26,6 +26,7 @@ class Config:
     proj_method: str = "auto"
     proj_n_neighbors: int = 25
     proj_min_dist: float = 0.12
+    ml: dict = field(default_factory=lambda: {"weak_weight": 0.007, "conf_threshold": 0.6, "weak_label_map": {"snare": "snare_clap", "clap": "snare_clap", "hihat": "hats_cymbals", "cymbal": "hats_cymbals", "fx": "sfx", "drums": "perc", "808": "bass"}})
 
 def load_config(path=None):
     cfg = Config()

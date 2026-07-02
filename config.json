@@ -1,6 +1,6 @@
 {
   "library_path": "/home/phlp/pcloud/DAW/Samples",
-  "workers": 4,
+  "workers": 5,
   "trust_db": true,
   "no_cache": true,
   "label_path": false,
@@ -18,5 +18,18 @@
   "panns_min_duration": 1.0,
   "proj_method": "auto",
   "proj_n_neighbors": 25,
-  "proj_min_dist": 0.12
+  "proj_min_dist": 0.12,
+  "ml": {
+    "weak_weight": 0.007,
+    "conf_threshold": 0.6,
+    "weak_label_map": {
+      "snare": "snare_clap",
+      "clap": "snare_clap",
+      "hihat": "hats_cymbals",
+      "cymbal": "hats_cymbals",
+      "fx": "sfx",
+      "drums": "perc",
+      "808": "bass"
+    }
+  }
 }
