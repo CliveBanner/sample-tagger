@@ -8,26 +8,30 @@ from tqdm import tqdm
 
 _CLAP_MODEL = None
 _DEVICE = None
+import threading
+_CLAP_LOCK = threading.Lock()
 
 def get_clap():
     global _CLAP_MODEL, _DEVICE
-    if _CLAP_MODEL is None:
-        _DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-        print(f"[clap] loading model on {_DEVICE}...")
-        _CLAP_MODEL = laion_clap.CLAP_Module(enable_fusion=False, amodel='HTSAT-base')
-        _CLAP_MODEL.load_ckpt(os.path.expanduser('~/clap_ckpt/music_audioset_epoch_15_esc_90.14.pt'))
+    with _CLAP_LOCK:
+        if _CLAP_MODEL is None:
+            _DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+            print(f"[clap] loading model on {_DEVICE}...")
+            _CLAP_MODEL = laion_clap.CLAP_Module(enable_fusion=False, amodel='HTSAT-base')
+            _CLAP_MODEL.load_ckpt(os.path.expanduser('~/clap_ckpt/music_audioset_epoch_15_esc_90.14.pt'))
     return _CLAP_MODEL
 
 def embed_paths(paths, db, out_npz):
     model = get_clap()
-    
-    existing_paths = set()
-    X_existing = []
+
+    # paths/X row alignment must survive resumes: keep the ordered list
+    paths_existing, X_existing, existing_paths = [], [], set()
     if os.path.exists(out_npz):
         try:
             data = np.load(out_npz, allow_pickle=True)
-            existing_paths = set(data['paths'])
+            paths_existing = list(data['paths'])
             X_existing = list(data['X'])
+            existing_paths = set(paths_existing)
             print(f"[clap] resuming from {len(existing_paths)} existing embeddings.")
         except Exception as e:
             print(f"[clap] failed to load existing npz: {e}")
@@ -69,7 +73,7 @@ def embed_paths(paths, db, out_npz):
             
     if len(X_new) > 0:
         X_final = np.array(X_existing + X_new, dtype=np.float32)
-        paths_final = list(existing_paths) + paths_new
+        paths_final = paths_existing + paths_new
         np.savez_compressed(out_npz, X=X_final, paths=np.array(paths_final, dtype=object))
         print(f"[clap] saved {len(X_final)} embeddings to {out_npz}")
 
@@ -94,79 +98,123 @@ def fetch_batch(batch_idx, paths, root):
                 shutil.copy2(src, dst)
     return tmp_dir, paths
 
+FIXED_LEN = 480000   # 10 s @ 48 kHz — laion_clap pads/crops to this internally anyway,
+                     # so pre-padding keeps batched results identical to per-file calls
+
+def _decode_one(job):
+    """Pool worker: decode one file to a fixed-length 48 kHz mono array."""
+    path_rel, full_path = job
+    try:
+        y, sr = librosa.load(full_path, sr=48000, mono=True, duration=10.0)
+        if y.shape[0] == 0:
+            return (path_rel, None)
+        if y.shape[0] < 48000:   # tile short one-shots (silence-padding kills timbre)
+            y = np.tile(y, int(np.ceil(48000 / y.shape[0])))[:48000]
+        if y.shape[0] < FIXED_LEN:
+            y = np.pad(y, (0, FIXED_LEN - y.shape[0]))
+        return (path_rel, y[:FIXED_LEN].astype(np.float32))
+    except Exception:
+        return (path_rel, None)
+
+
 def embed_paths_staged(paths, db, out_npz):
+    """Full-library embed: rclone-staged download (prefetch thread) + parallel decode
+    pool (webapp `workers` config) + batched model inference in the main process."""
     import concurrent.futures
     import shutil
-    
-    model = get_clap()
-    
-    existing_paths = set()
-    X_existing = []
+    import time
+    from multiprocessing import Pool
+
+    # ORDER MATTERS: paths and X must stay row-aligned across resumes, so existing
+    # paths are kept as a LIST (a set would scramble the pairing on every restart).
+    paths_existing, X_existing, existing = [], [], set()
     if os.path.exists(out_npz):
         try:
             data = np.load(out_npz, allow_pickle=True)
-            existing_paths = set(data['paths'])
+            paths_existing = list(data['paths'])
             X_existing = list(data['X'])
-            print(f"[clap] resuming from {len(existing_paths)} existing embeddings.")
+            existing = set(paths_existing)
+            print(f"[clap] resuming from {len(existing)} existing embeddings.", flush=True)
         except Exception as e:
-            print(f"[clap] failed to load existing npz: {e}")
-            
+            print(f"[clap] failed to load existing npz: {e}", flush=True)
+
     from ..config import load_config
     cfg = load_config(os.path.join(os.path.dirname(os.path.abspath(db)), "config.json"))
     root = cfg.library_path
-    
-    X_new = []
-    paths_new = []
-    
-    to_process = [p for p in paths if p not in existing_paths]
+    workers = max(1, int(getattr(cfg, "workers", 4)))
+
+    to_process = [p for p in paths if p not in existing]
     if not to_process:
-        print("[clap] all paths already embedded.")
+        print("[clap] all paths already embedded.", flush=True)
         return
-        
-    print(f"[clap] staged embedding {len(to_process)} paths...")
+
+    print(f"[clap] staged embedding {len(to_process)} paths "
+          f"({workers} decode workers, batched inference)...", flush=True)
     BATCH_SIZE = 500
-    batches = [to_process[i:i+BATCH_SIZE] for i in range(0, len(to_process), BATCH_SIZE)]
-    
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        if not batches: return
-        future = executor.submit(fetch_batch, 0, batches[0], root)
-        
-        for i in range(len(batches)):
-            tmp_dir, batch_paths = future.result()
-            
-            if i + 1 < len(batches):
-                future = executor.submit(fetch_batch, i + 1, batches[i + 1], root)
-                
-            for p in tqdm(batch_paths, desc=f"Batch {i+1}/{len(batches)}"):
-                full_path = os.path.join(tmp_dir, p)
-                if not os.path.exists(full_path):
-                    continue
-                try:
-                    y, sr = librosa.load(full_path, sr=48000, mono=True, duration=10.0)
-                    if y.shape[0] == 0:
+    EMBED_BATCH = 16
+    CHECKPOINT_EVERY = 2000
+    batches = [to_process[i:i + BATCH_SIZE] for i in range(0, len(to_process), BATCH_SIZE)]
+
+    X_new, paths_new = [], []
+    errors = 0
+    since_ckpt = 0
+    t0 = time.time()
+
+    def checkpoint():
+        X_final = np.array(X_existing + X_new, dtype=np.float32)
+        paths_final = paths_existing + paths_new
+        np.savez_compressed(out_npz, X=X_final, paths=np.array(paths_final, dtype=object))
+
+    # decode pool BEFORE the model loads keeps the forked children lightweight
+    with Pool(workers) as pool:
+        model = get_clap()
+
+        def flush_embed(buf_p, buf_y):
+            nonlocal since_ckpt
+            if not buf_p:
+                return
+            emb = model.get_audio_embedding_from_data(x=np.stack(buf_y), use_tensor=False)
+            emb = emb / np.linalg.norm(emb, axis=1, keepdims=True)
+            X_new.extend(emb.astype(np.float32))
+            paths_new.extend(buf_p)
+            since_ckpt += len(buf_p)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(fetch_batch, 0, batches[0], root)
+            for i in range(len(batches)):
+                tmp_dir, batch_paths = future.result()
+                if i + 1 < len(batches):
+                    future = executor.submit(fetch_batch, i + 1, batches[i + 1], root)
+
+                jobs = [(p, os.path.join(tmp_dir, p)) for p in batch_paths
+                        if os.path.exists(os.path.join(tmp_dir, p))]
+                errors += len(batch_paths) - len(jobs)
+                buf_p, buf_y = [], []
+                for p, y in pool.imap_unordered(_decode_one, jobs, chunksize=4):
+                    if y is None:
+                        errors += 1
                         continue
-                    if y.shape[0] < 48000:
-                        y = np.tile(y, int(np.ceil(48000 / y.shape[0])))[:48000]
-                    y = y.reshape(1, -1)
-                    emb = model.get_audio_embedding_from_data(x=y, use_tensor=False)
-                    emb = emb[0]
-                    emb = emb / np.linalg.norm(emb)
-                    X_new.append(emb)
-                    paths_new.append(p)
-                except Exception:
-                    pass
-            
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-            
-            # Save checkpoint
-            if len(X_new) > 0:
-                X_final = np.array(X_existing + X_new, dtype=np.float32)
-                paths_final = list(existing_paths) + paths_new
-                np.savez_compressed(out_npz, X=X_final, paths=np.array(paths_final, dtype=object))
-                
-    # Final save
-    if len(X_new) > 0:
-        print(f"[clap] saved {len(X_final)} embeddings to {out_npz}")
+                    buf_p.append(p)
+                    buf_y.append(y)
+                    if len(buf_p) >= EMBED_BATCH:
+                        flush_embed(buf_p, buf_y)
+                        buf_p, buf_y = [], []
+                flush_embed(buf_p, buf_y)
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+
+                if since_ckpt >= CHECKPOINT_EVERY:
+                    checkpoint()
+                    since_ckpt = 0
+                done = len(paths_new)
+                rate = done / max(time.time() - t0, 1)
+                eta_h = (len(to_process) - done) / max(rate, 0.01) / 3600
+                print(f"[clap] {len(existing) + done}/{len(existing) + len(to_process)}  "
+                      f"{rate:.2f}/s  err={errors}  eta {eta_h:.1f}h", flush=True)
+
+    if paths_new:
+        checkpoint()
+        print(f"[clap] saved {len(X_existing) + len(X_new)} embeddings to {out_npz} "
+              f"({errors} errors)", flush=True)
 
 
 PROMPTS = {

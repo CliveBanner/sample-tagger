@@ -26,9 +26,16 @@ def similar_api(query, k=24):
     if matched is None:
         return {"query": query, "matched": None, "hits": [], "n": len(ix.paths)}
     meta = simlib.fetch_meta(state.DB, [p for p, _ in hits])
+    m = build_map()
+    path_to_i = m.get("_path_to_i", None)
+    if path_to_i is None:
+        path_to_i = {p: i for i, p in enumerate(m.get("paths", []))}
+        m["_path_to_i"] = path_to_i
+        
     return {"query": query, "matched": matched, "matched_name": os.path.basename(matched),
             "n": len(ix.paths),
             "hits": [dict(path=p, name=os.path.basename(p), score=round(s, 3),
+                          map_i=path_to_i.get(p, -1),
                           **meta.get(p, {})) for p, s in hits]}
 
 def propagate_candidates(path, k=24):
@@ -62,7 +69,7 @@ def propagate_candidates(path, k=24):
     items.sort(key=lambda d: -d["score"])
     return {"items": items}
 
-def search_text_api(query, k=24):
+def search_text_api(query, k=24, offset=0):
     if not query:
         return {"query": query, "hits": [], "n": 0}
     
@@ -80,12 +87,20 @@ def search_text_api(query, k=24):
         
     scores = X @ q_vec
     
-    top_indices = np.argsort(scores)[::-1][:k]
+    top_indices = np.argsort(scores)[::-1]
+    top_indices = top_indices[offset:offset+k]
     hits = [(paths[i], scores[i]) for i in top_indices]
     
     meta = simlib.fetch_meta(state.DB, [p for p, _ in hits])
+    m = build_map()
+    path_to_i = m.get("_path_to_i", None)
+    if path_to_i is None:
+        path_to_i = {p: i for i, p in enumerate(m.get("paths", []))}
+        m["_path_to_i"] = path_to_i
+        
     return {"query": query, "n": len(paths),
             "hits": [dict(path=p, name=os.path.basename(p), score=round(float(s), 3),
+                          map_i=path_to_i.get(p, -1),
                           **meta.get(p, {})) for p, s in hits]}
 
 def build_map():
@@ -108,7 +123,7 @@ def build_map():
         else:
             try:
                 cols = ("s.instrument, s.human_instrument, s.model_instrument, "
-                        "s.path_instrument, s.panns_instrument, s.audio_instrument, "
+                        "s.path_instrument, s.panns_instrument, "
                         "s.sample_type, s.duration_s, s.label_source, s.cluster_l1")
                 if sidecar_mtime:
                     con.execute("ATTACH DATABASE ? AS pj", (f"file:{proj_db}?mode=ro",))
@@ -131,12 +146,12 @@ def build_map():
     tcode = {"oneshot": 0, "loop": 1}
     LS_CODE = {"single": 0, "cluster": 1, "map": 2, "propagate": 3, "llm": 4}
     LS_NONE = 5
-    FIELD_COLS = ("instrument", "human", "model", "path", "panns", "audio")
+    FIELD_COLS = ("instrument", "human", "model", "path", "panns")
     fam_none = len(fam_labels)
     fields = {k: [] for k in FIELD_COLS}
     fields["family"] = []
     xs, ys, ts, ds, ls, paths = [], [], [], [], [], []
-    for (path, x, y, instr, human_i, model_i, path_i, panns_i, audio_i,
+    for (path, x, y, instr, human_i, model_i, path_i, panns_i,
          st, dur, lsrc, cl1) in rows:
         xs.append(round(x, 4)); ys.append(round(y, 4))
         fields["instrument"].append(cidx.get(instr, none_idx))
@@ -144,7 +159,6 @@ def build_map():
         fields["model"].append(cidx.get(model_i, none_idx))
         fields["path"].append(cidx.get(path_i, none_idx))
         fields["panns"].append(cidx.get(panns_i, none_idx))
-        fields["audio"].append(cidx.get(audio_i, none_idx))
         fields["family"].append(cl1 if (cl1 is not None and 0 <= cl1 < fam_none) else fam_none)
         ts.append(tcode.get(st, 2))
         ds.append(round(dur, 2) if dur else 0)

@@ -1,6 +1,6 @@
 {
   "library_path": "/home/phlp/pcloud/DAW/Samples",
-  "workers": 5,
+  "workers": 4,
   "trust_db": true,
   "no_cache": true,
   "label_path": false,

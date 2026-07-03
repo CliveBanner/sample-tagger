@@ -71,7 +71,6 @@ def stats():
 
         path_dist  = inst_dist("path_instrument")
         panns_dist = inst_dist("panns_instrument")
-        panns_raw_dist = top_n_with_other("panns_label", 12)
         # human counts come from the label sets so secondary labels are visible
         try:
             human_dist = [dict(label=r[0], n=r[1]) for r in state.q(
@@ -124,7 +123,7 @@ def stats():
             "pct": round(100 * prog.get("done", 0) / total, 1) if total else None,
             "label_done": prog.get("done", 0), "label_total": total,
             "coverage": coverage,
-            "path_dist": path_dist, "panns_dist": panns_dist, "panns_raw_dist": panns_raw_dist,
+            "path_dist": path_dist, "panns_dist": panns_dist,
             "human_dist": human_dist, "sample_type": sample_type,
             "model_dist": model_dist, "model_conf_hist": model_conf_hist,
             "keys": keys, "bpm_hist": bpm_hist, "log_tail": log_tail,

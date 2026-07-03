@@ -5,7 +5,6 @@ SAMPLE_COLUMNS = {
     "sample_type": "TEXT", "instrument": "TEXT", "tonal": "TEXT", "bpm": "INTEGER", "key": "TEXT",
     "source": "TEXT", "status": "TEXT", "error": "TEXT", "tagged": "INTEGER DEFAULT 0", "ts": "REAL",
     "path_instrument": "TEXT", "panns_instrument": "TEXT", "panns_conf": "REAL",
-    "audio_instrument": "TEXT", "panns_label": "TEXT", "panns_label_conf": "REAL", "panns_topk": "TEXT",
     "human_sample_type": "TEXT", "human_instrument": "TEXT",
     "model_instrument": "TEXT", "model_conf": "REAL", "model_version": "TEXT", "model_margin": "REAL",
     "model_margin_label": "TEXT",

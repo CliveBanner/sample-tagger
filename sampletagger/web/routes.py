@@ -13,6 +13,12 @@ from . import gold
 def _qs(req):
     return urllib.parse.parse_qs(urllib.parse.urlparse(req.path).query)
 
+def q_str(req, key, default=""):
+    return (_qs(req).get(key) or [default])[0]
+
+def q_int(req, key, default=0):
+    return int((_qs(req).get(key) or [default])[0])
+
 def serve_audio(req, path):
     if not path or not state.valid_sample(path) or not os.path.isfile(path):
         req._send(404, "not found", "text/plain"); return
@@ -95,26 +101,33 @@ GET_ROUTES = {
     "/api/labels": state.get_labels,
     "/api/colors": state.get_colors,
     "/api/weakmap": state.get_weakmap,
-    "/api/review/queue": lambda req: labeling.review_queue((_qs(req).get("mode") or ["disagree"])[0]),
+    "/api/review/queue": lambda req: labeling.review_queue(q_str(req, "mode", "disagree")),
     "/api/config": state.load_config,
     "/api/run/status": runs.run_status,
     "/api/run/ml/status": runs.ml_run_status,
     "/api/stats": stats.stats,
     "/api/log": runs.log_tail,
     "/api/errors": stats.recent_errors,
-    "/api/similar": lambda req: mapview.similar_api((_qs(req).get("path") or _qs(req).get("q") or [""])[0], int((_qs(req).get("k") or ["24"])[0])),
-    "/api/search_text": lambda req: mapview.search_text_api((_qs(req).get("q") or [""])[0], int((_qs(req).get("k") or ["24"])[0])),
-    "/api/propagate": lambda req: mapview.propagate_candidates((_qs(req).get("path") or [""])[0], int((_qs(req).get("k") or ["24"])[0])),
+    "/api/similar": lambda req: mapview.similar_api(q_str(req, "path") or q_str(req, "q"), q_int(req, "k", 24)),
+    "/api/search_text": lambda req: mapview.search_text_api(q_str(req, "q"), q_int(req, "k", 24), q_int(req, "offset", 0)),
+    "/api/propagate": lambda req: mapview.propagate_candidates(q_str(req, "path"), q_int(req, "k", 24)),
     "/api/sonic/families": sonic.sonic_families,
-    "/api/sonic/grains": lambda req: sonic.sonic_grains(int((_qs(req).get("family") or ["-1"])[0])),
-    "/api/sonic/members": lambda req: sonic.sonic_members(int((_qs(req).get("grain") or ["-1"])[0])),
+    "/api/sonic/grains": lambda req: sonic.sonic_grains(q_int(req, "family", -1)),
+    "/api/sonic/members": lambda req: sonic.sonic_members(q_int(req, "grain", -1)),
     "/api/map": mapview.map_api,
-    "/api/point": lambda req: mapview.point_api(int((_qs(req).get("i") or ["-1"])[0])),
+    "/api/point": lambda req: mapview.point_api(q_int(req, "i", -1)),
     "/api/reproject": mapview.reproject_start,
     "/api/reproject_status": lambda req: state._REPROJ,
     "/api/gold/status": gold.gold_status,
     "/api/ml/metrics": gold.ml_metrics,
 }
+
+def p_str(data, key, default=""):
+    return data.get(key, default)
+
+def p_int(data, key, default=0):
+    try: return int(data.get(key, default))
+    except (ValueError, TypeError): return default
 
 POST_ROUTES = {
     "/api/config": lambda data: state.save_config(data),
@@ -125,15 +138,15 @@ POST_ROUTES = {
     "/api/run/ml": lambda data: runs.ml_run_start(),
     "/api/run/ml/stop": lambda data: runs.ml_run_stop(),
     "/api/label": lambda data: labeling.label_api(
-        data.get("path",""),
+        p_str(data, "path"),
         data.get("labels") if data.get("labels") is not None
-        else [l for l in [data.get("instrument",""), data.get("instrument2")] if l]),
-    "/api/label_type": lambda data: labeling.label_type_api(data.get("path",""), data.get("sample_type","")),
-    "/api/rate": lambda data: labeling.rate_api(data.get("path",""), data.get("rating", 0)),
+        else [l for l in [p_str(data, "instrument"), p_str(data, "instrument2")] if l]),
+    "/api/label_type": lambda data: labeling.label_type_api(p_str(data, "path"), p_str(data, "sample_type")),
+    "/api/rate": lambda data: labeling.rate_api(p_str(data, "path"), p_int(data, "rating")),
     "/api/label_propagate": lambda data: labeling.label_propagate(
-        data.get("paths", []), data.get("labels") or data.get("instrument","")),
-    "/api/labels/add": lambda data: labeling.add_label(data.get("name","")),
-    "/api/labels/delete": lambda data: labeling.delete_label(data.get("name","")),
+        data.get("paths", []), data.get("labels") or p_str(data, "instrument")),
+    "/api/labels/add": lambda data: labeling.add_label(p_str(data, "name")),
+    "/api/labels/delete": lambda data: labeling.delete_label(p_str(data, "name")),
     "/api/label_map": lambda data: labeling.label_map(data),
     "/api/gold/sample": gold.gold_sample,
     "/api/gold/freeze": gold.gold_freeze,

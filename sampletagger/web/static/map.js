@@ -246,7 +246,7 @@ document.getElementById('btnLabel').onclick=async()=>{
   } else {
     msg.style.color='#f92672';msg.textContent=d.msg||'error';}
   btn.disabled=false;};
-const SRC_LABEL={'path':'via path','panns':'via PANNs','audio':'via audio','none':'unknown','human':'✎ human'};
+const SRC_LABEL={'path':'via path','panns':'via PANNs','none':'unknown','human':'✎ human'};
 const SRC_COLOR={'human':'#f6d860'};
 let _selRating=0;
 function mapStarInner(rating){
@@ -267,19 +267,16 @@ function showSel(p){
   _selRating=p.rating||0;
   const srcCol=SRC_COLOR[p.source]||'var(--dim)';
   // build classification breakdown rows
+  const modelConf=p.model_conf?` <span style="color:var(--dim);font-size:10px">${(p.model_conf*100).toFixed(0)}%</span>`:'';
   const conf=p.panns_conf?` <span style="color:var(--dim);font-size:10px">${(p.panns_conf*100).toFixed(0)}%</span>`:'';
-  const rawConf=p.panns_label_conf?` <span style="color:var(--dim);font-size:10px">${(p.panns_label_conf*100).toFixed(0)}%</span>`:'';
-  const rawTip=(p.panns_topk||[]).map(t=>`${t[0]} ${(t[1]*100).toFixed(0)}%`).join(' · ');
   const rows=[
     p.path_instrument  ?`<tr><td style="color:var(--dim);padding-right:8px">path</td><td>${p.path_instrument}</td></tr>`:'',
     p.panns_instrument ?`<tr><td style="color:var(--dim);padding-right:8px">PANNs</td><td>${p.panns_instrument}${conf}</td></tr>`:'',
-    p.audio_instrument ?`<tr><td style="color:var(--dim);padding-right:8px">audio</td><td>${p.audio_instrument}</td></tr>`:'',
     (p.model_labels&&p.model_labels.length)
       ?`<tr><td style="color:var(--dim);padding-right:8px">model</td><td>${p.model_labels.map(x=>`${x[0]} <span style="color:var(--dim);font-size:10px">${(x[1]*100).toFixed(0)}%</span>`).join(' · ')}</td></tr>`
-      :(p.model_instrument?`<tr><td style="color:var(--dim);padding-right:8px">model</td><td>${p.model_instrument}${p.model_conf?` <span style="color:var(--dim);font-size:10px">${(p.model_conf*100).toFixed(0)}%</span>`:''}</td></tr>`:''),
+      :(p.model_instrument?`<tr><td style="color:var(--dim);padding-right:8px">model</td><td>${p.model_instrument}${modelConf}</td></tr>`:''),
     (p.human_labels&&p.human_labels.length>1)
       ?`<tr><td style="color:var(--dim);padding-right:8px">human</td><td>${p.human_labels.join(' + ')}</td></tr>`:'',
-    p.panns_label      ?`<tr><td style="color:var(--dim);padding-right:8px">raw</td><td title="${rawTip}">${p.panns_label}${rawConf}</td></tr>`:'',
   ].join('');
   const srcCol2=SRC_COLOR[p.source]||'var(--dim)';
   el.innerHTML=`<div style="word-break:break-all;font-weight:500">${p.name||'?'}</div>
@@ -330,27 +327,43 @@ function playFromRow(el,path){
   if(_playingRow)_playingRow.textContent='▶';
   el.textContent='■';_playingRow=el;
   // follow along on the map: ring + center camera on the playing sample
-  const i=M&&M.paths?M.paths.indexOf(path):-1;
+  const i = el.closest('.srow') ? parseInt(el.closest('.srow').dataset.mapi, 10) : -1;
   if(i>=0){sel=i;focusSel();draw();}
 }
 document.getElementById('player').addEventListener('ended',()=>{
   if(_playingRow){_playingRow.textContent='▶';_playingRow=null;}});
 
-function searchLocate(path){
-  const idx=M&&M.paths?M.paths.indexOf(path):-1;
+function searchLocate(el, path){
+  const idx = el ? parseInt(el.dataset.mapi, 10) : -1;
   if(idx>=0){sel=idx;focusSel();draw();inspect(idx);}     // full detail incl. labels
   else{_selPath=path;showSelName(path);}                  // not on the map (yet)
-  switchSideTab('detail');
+}
+
+function rateRow(el, path, n){
+  const current = parseInt(el.dataset.rating||0, 10);
+  if(current===n) n=0;
+  el.dataset.rating = n;
+  fetch('/api/rate',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path:path,rating:n})});
+  el.innerHTML=rowStarInner(n);
+  if(path===_selPath){ _selRating=n; const ms=document.getElementById('mstars'); if(ms)ms.innerHTML=mapStarInner(n); }
+}
+function rowStarInner(rating){
+  let h='';
+  for(let n=1;n<=5;n++){const on=n<=rating; h+=`<span class="star${on?' on':''}" data-n="${n}">${on?'★':'☆'}</span>`;}
+  return h;
 }
 
 function searchRow(x){
   const hl=(x.human_labels||[]).map(l=>`<span class=pill style="background:#a6e22e22;border:1px solid #a6e22e;color:#a6e22e">${l}</span>`).join('');
   const ml=(x.model_labels||[]).slice(0,2).map(([l,c])=>`<span class=pill style="background:#66d9ef22;border:1px solid #66d9ef55;color:#66d9ef">${l} ${(c*100).toFixed(0)}%</span>`).join('');
-  return `<div class="hit srow" data-p="${encodeURIComponent(x.path)}">
+  const r = x.rating || 0;
+  const stars = `<span class="stars search-stars" data-p="${encodeURIComponent(x.path)}" data-rating="${r}" style="font-size:14px; margin-left:6px">${rowStarInner(r)}</span>`;
+  return `<div class="hit srow" data-p="${encodeURIComponent(x.path)}" data-mapi="${x.map_i}">
     <button class=hit-play title=audition>▶</button>
     <button class=hit-sim title="find similar to this">≈</button>
     <span class=s>${x.score}</span><span class=srow-name>${x.name}</span>
-    <div class=srow-meta>${hl}${ml}
+    <div class=srow-meta>${hl}${ml}${stars}
       <span class=muted>${x.sample_type||''} ${x.duration_s?x.duration_s.toFixed(1)+'s':''} ${x.bpm?x.bpm+'bpm':''} ${x.key||''} ${x.source?'· '+x.source:''}</span></div>
     </div>`;
 }
@@ -364,26 +377,60 @@ function bindHitRows(container){
     el.querySelector('.hit-sim').onclick=(e)=>{e.stopPropagation();
       _selPath=path;showSelName(path);switchSideTab('detail');
       loadSimilar('path='+encodeURIComponent(path));};
-    el.onclick=()=>searchLocate(path);
+    el.onclick=()=>searchLocate(el, path);
+    el.querySelectorAll('.search-stars .star').forEach(star=>{
+      star.onclick = (e) => {
+        e.stopPropagation();
+        const p = decodeURIComponent(star.closest('.search-stars').dataset.p);
+        const n = parseInt(star.dataset.n, 10);
+        rateRow(star.closest('.search-stars'), p, n);
+      };
+    });
   });
 }
 
-async function loadTextSearch(qs){
+let _searchOffset = 0;
+let _searchQ = '';
+
+async function loadTextSearch(q, append=false){
   switchSideTab('search');
   const h=document.getElementById('searchResults');
-  h.innerHTML='<span class=muted>…</span>';
-  const d=await(await fetch('/api/search_text?k=24&'+qs)).json();
-  document.getElementById('searchInfo').textContent=`${(d.hits||[]).length} hits · ${(d.n||0).toLocaleString()} files indexed`;
-  if(!d.hits || d.hits.length===0){h.innerHTML='<span class=muted>no match</span>';return;}
+  if(!append) { h.innerHTML='<span class=muted>…</span>'; _searchOffset=0; _searchQ=q; }
+  
+  const d=await(await fetch(`/api/search_text?k=24&q=${encodeURIComponent(_searchQ)}&offset=${_searchOffset}`)).json();
+  const info = document.getElementById('searchInfo');
+  if(!append) info.textContent=`${(d.hits||[]).length} hits · ${(d.n||0).toLocaleString()} files indexed`;
+  else info.textContent=`${_searchOffset + (d.hits||[]).length} hits · ${(d.n||0).toLocaleString()} files indexed`;
+
+  if(!d.hits || d.hits.length===0){
+    if(!append) h.innerHTML='<span class=muted>no match</span>';
+    return;
+  }
   h.classList.remove('muted');
-  h.innerHTML=d.hits.map(searchRow).join('');
+  
+  const newHtml = d.hits.map(searchRow).join('');
+  if(append) {
+    const oldBtn = document.getElementById('loadMoreBtn');
+    if(oldBtn) oldBtn.remove();
+    h.insertAdjacentHTML('beforeend', newHtml);
+  } else {
+    h.innerHTML = newHtml;
+  }
   _playingRow=null;
 
+  if(d.hits.length === 24) {
+    h.insertAdjacentHTML('beforeend', `<button id="loadMoreBtn" style="margin-top:10px; width:100%">Load More</button>`);
+    document.getElementById('loadMoreBtn').onclick = () => {
+      _searchOffset += 24;
+      loadTextSearch(_searchQ, true);
+    };
+  }
+
   // select all hits on the map (same set the batch panel acts on) and zoom to them
-  selIdx.clear();
-  if(M&&M.paths)d.hits.forEach(hit=>{const i=M.paths.indexOf(hit.path);if(i>=0)selIdx.add(i);});
+  if(!append) selIdx.clear();
+  d.hits.forEach(hit=>{if(hit.map_i>=0)selIdx.add(hit.map_i);});
   updateBatchPanel();
-  fitToSel();
+  if(!append) fitToSel();
   draw();
 
   bindHitRows(h);
@@ -392,14 +439,14 @@ async function loadTextSearch(qs){
 function runSearch(v){
   if(!v)return;
   if(v.includes('/')||v.includes('\\'))loadSimilar('q='+encodeURIComponent(v));
-  else{document.getElementById('q2').value=v;loadTextSearch('q='+encodeURIComponent(v));}
+  else{document.getElementById('q2').value=v;loadTextSearch(v);}
 }
 document.getElementById('q').addEventListener('keydown',e=>{
   if(e.key==='Enter')runSearch(e.target.value.trim());});
 document.getElementById('q2').addEventListener('keydown',e=>{
   if(e.key==='Enter')runSearch(e.target.value.trim());});
 const VIEW_FIELDS=[['instrument','resolved'],['human','human'],['model','model'],
-  ['path','path'],['panns','PANNs'],['audio','audio'],['family','sonic family']];
+  ['path','path'],['panns','PANNs'],['family','sonic family']];
 const PROV=[[0,'single'],[1,'cluster'],[2,'map'],[3,'propagate'],[4,'llm'],[5,'none']];
 function legend(){
   const el=document.getElementById('legend');

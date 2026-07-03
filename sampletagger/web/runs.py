@@ -67,6 +67,7 @@ def run_start(stage):
         classifiers = []
         if cfg.get("label_path"):  classifiers.append("path")
         if cfg.get("label_panns"): classifiers.append("panns")
+        if cfg.get("label_clap"):  classifiers.append("clap")
         if not classifiers:
             return {"ok": False, "msg": "no classifiers selected"}
         cmd += ["--classifiers", ",".join(classifiers)]

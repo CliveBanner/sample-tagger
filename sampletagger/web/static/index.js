@@ -121,7 +121,6 @@ async function tick(){
     (METRICS&&METRICS.length?card('Model quality — val macro F1 (%) per training run',
       `<div class=muted style="font-size:12px;margin-bottom:8px">frozen eval set (${METRICS[METRICS.length-1].val_n} files) · higher is better</div>`+bars(METRICS)):'')+
     classifierCard('PANNs (mapped)', cov.panns, s.panns_dist||[], '#ae81ff', 'pending')+
-    card('PANNs raw (AudioSet)', pie(s.panns_raw_dist||[]))+
     classifierCard('Path',  cov.path,  s.path_dist||[],  '#a6e22e', 'no path hint')+
     card('Sample type',pie(s.sample_type||[]))+
     card('Key distribution',bars(s.keys||[]))+

@@ -12,6 +12,7 @@ class Config:
     no_cache: bool = False
     label_path: bool = False
     label_panns: bool = True
+    label_clap: bool = False
     gpu_python: str = ""
     redo: str = ""
     limit: int = 0

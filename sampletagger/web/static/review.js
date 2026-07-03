@@ -81,13 +81,13 @@ function pill(inst){
 
 function disagreeing(it){
   // compare in one vocabulary: unmappable weak names (e.g. "tonal") are excluded
-  const vals=[it.path_instrument,it.panns_instrument,it.audio_instrument,it.model_instrument]
+  const vals=[it.path_instrument,it.panns_instrument,it.model_instrument]
     .map(v=>{const d=dispInst(v);return d&&d.valid?d.name:null;}).filter(Boolean);
   return new Set(vals).size > 1;
 }
 
 function suggestedFor(it){
-  for(const v of [it.model_instrument,it.panns_instrument,it.audio_instrument,it.path_instrument]){
+  for(const v of [it.model_instrument,it.panns_instrument,it.path_instrument]){
     const d=dispInst(v);
     if(d&&d.valid)return d.name;
   }
@@ -107,7 +107,7 @@ function listHTML(){
     <div class="item${it._done?' done':''}${it._seen?' seen':''}${i===cur?' sel':''}" onclick="select(${i})">
       <div class=iname>${basename(it.path)}</div>
       <div class=pills>
-        ${pill(it.path_instrument)}${pill(it.panns_instrument)}${pill(it.audio_instrument)}${pill(it.model_instrument)}
+        ${pill(it.path_instrument)}${pill(it.panns_instrument)}${pill(it.model_instrument)}
         ${it.human_instrument?`<span class=pill style="background:#a6e22e">✓ ${(it.human_labels&&it.human_labels.length?it.human_labels:[it.human_instrument]).join('+')}</span>`:''}
         ${it.rating?`<span class=pill style="background:#e6db74;color:#000">★${it.rating}</span>`:''}
       </div>
@@ -135,9 +135,8 @@ function renderDetail(it,i){
   if(!it){document.getElementById('detail').innerHTML='<div class=empty>Select a sample.</div>';return;}
   const rows=[
     it.model_instrument?`<tr><td>model</td><td>${(it.model_labels&&it.model_labels.length?it.model_labels:[[it.model_instrument,it.model_conf]]).map(([l,c])=>`<span style="color:${col(l)}">${l}</span>${c?`<span class=conf>${(c*100).toFixed(0)}%</span>`:''}`).join(' ')}</td><td></td></tr>`:'',
-    it.path_instrument?`<tr><td>path</td><td style="color:${col(it.path_instrument)}">${it.path_instrument}</td><td></td></tr>`:'',
+    it.path_instrument?(d=>`<tr><td>path</td><td style="color:${d.valid?col(d.name):'#777'}">${d.name}${d.valid?'':' (dropped)'}</td><td>${disagreeing(it)?'<span class=disagree>⚡ disagrees</span>':''}</td></tr>`)(dispInst(it.path_instrument)):'',
     it.panns_instrument?(d=>`<tr><td>PANNs</td><td style="color:${d.valid?col(d.name):'#777'}"${d.raw?` title="raw: ${d.raw}"`:''}>${d.name}${d.valid?'':' (dropped)'}${it.panns_conf?`<span class=conf>${(it.panns_conf*100).toFixed(0)}%</span>`:''}</td><td>${disagreeing(it)?'<span class=disagree>⚡ disagrees</span>':''}</td></tr>`)(dispInst(it.panns_instrument)):'',
-    it.audio_instrument?(d=>`<tr><td>audio</td><td style="color:${d.valid?col(d.name):'#777'}"${d.raw?` title="raw: ${d.raw}"`:''}>${d.name}${d.valid?'':' (dropped)'}</td><td></td></tr>`)(dispInst(it.audio_instrument)):'',
   ].join('');
 
   const effType=it.human_sample_type||it.sample_type;

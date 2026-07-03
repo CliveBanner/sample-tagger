@@ -52,8 +52,8 @@ def fetch_meta(db, paths):
         qs = ",".join("?" * len(paths))
         rows = con.execute(
             f"SELECT path,instrument,sample_type,bpm,key,duration_s,source,"
-            f"path_instrument,panns_instrument,panns_conf,audio_instrument,"
-            f"panns_label,panns_label_conf,panns_topk,rating,model_instrument,model_conf "
+            f"path_instrument,panns_instrument,panns_conf,"
+            f"rating,model_instrument,model_conf "
             f"FROM samples WHERE path IN ({qs})", paths).fetchall()
     finally:
         con.close()
@@ -85,13 +85,9 @@ def fetch_meta(db, paths):
                        key=r[4], duration_s=r[5], source=r[6],
                        path_instrument=r[7], panns_instrument=r[8],
                        panns_conf=round(r[9], 3) if r[9] else None,
-                       audio_instrument=r[10],
-                       panns_label=r[11],
-                       panns_label_conf=round(r[12], 3) if r[12] else None,
-                       panns_topk=_topk(r[13]),
-                       rating=r[14] or 0,
-                       model_instrument=r[15],
-                       model_conf=round(r[16], 3) if r[16] else None) for r in rows}
+                       rating=r[10] or 0,
+                       model_instrument=r[11],
+                       model_conf=round(r[12], 3) if r[12] else None) for r in rows}
 
 def sim_cmd(args):
     ix = SimIndex(args.db)

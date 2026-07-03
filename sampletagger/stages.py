@@ -141,4 +141,15 @@ def run_label(con, args, t0):
     if con:
         print(f"index: {args.db}", flush=True)
     
-
+    if "clap" in classifiers:
+        print("\n--- CLAP Text-to-Audio Embedding ---", flush=True)
+        import subprocess
+        import sys
+        cmd = [sys.executable, "-m", "sampletagger.ml.cli", "clap-embed", args.db, "--full"]
+        if "clap" in redo_set:
+            pass # Currently clap-embed does not support a force overwrite flag natively, it resumes.
+        try:
+            subprocess.run(cmd, check=True)
+            print("CLAP embedding completed.", flush=True)
+        except subprocess.CalledProcessError as e:
+            print(f"CLAP embedding failed with code {e.returncode}.", flush=True)

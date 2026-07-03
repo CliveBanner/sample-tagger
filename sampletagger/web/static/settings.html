@@ -36,8 +36,8 @@
 </div>
 </div>
 <div class="group">
-<h2>Stage 2 — Label</h2>
-<p style="font-size:12px;color:var(--dim);margin:0 0 12px">Compute classifier results for indexed files. Each classifier writes to its own column — results are independent and never overwrite each other automatically.</p>
+<h2>Stage 2 — Classifiers & Embeddings</h2>
+<p style="font-size:12px;color:var(--dim);margin:0 0 12px">Compute classifier results and embeddings for indexed files. Each model writes to its own column or index — results are independent and never overwrite each other automatically.</p>
 <div class="field">
 <label>Workers</label>
 <input id="workers" max="24" min="1" type="number"/>
@@ -54,8 +54,12 @@
 <input id="label_panns" type="checkbox"/>
 <label for="label_panns"><b>PANNs</b> — CNN14 neural net (slow, also produces the map embedding)</label>
 </div>
+<div class="chk-row" style="margin:2px 0">
+<input id="label_clap" type="checkbox"/>
+<label for="label_clap"><b>CLAP</b> — Text-to-audio model for natural language semantic search</label>
 </div>
-<span class="hint">Only files missing that column are processed. Already-labeled files are skipped unless Redo is set.</span>
+</div>
+<span class="hint">Only files missing that result are processed. Already-labeled files are skipped unless Redo is set.</span>
 </div>
 <div class="field">
 <label>GPU Python</label>

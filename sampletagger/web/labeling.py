@@ -243,7 +243,7 @@ def review_queue(mode="unified", limit=80):
         query = f"""
         WITH wm(old, new) AS (VALUES {wm_values})
         SELECT path, path_instrument, panns_instrument, panns_conf,
-               audio_instrument, duration_s, sample_type, human_sample_type, human_instrument,
+               duration_s, sample_type, human_sample_type, human_instrument,
                model_instrument, model_conf, rating, cluster_id, cluster_l1
         FROM (
           SELECT samples.*,
@@ -292,12 +292,11 @@ def review_queue(mode="unified", limit=80):
     items = [{"path": r[0], "path_instrument": r[1],
               "panns_instrument": r[2],
               "panns_conf": round(r[3], 3) if r[3] else None,
-              "audio_instrument": r[4],
-              "duration_s": r[5], "sample_type": r[6],
-              "human_sample_type": r[7], "human_instrument": r[8],
-              "model_instrument": r[9],
-              "model_conf": round(r[10], 3) if r[10] else None,
-              "rating": r[11] or 0}
+              "duration_s": r[4], "sample_type": r[5],
+              "human_sample_type": r[6], "human_instrument": r[7],
+              "model_instrument": r[8],
+              "model_conf": round(r[9], 3) if r[9] else None,
+              "rating": r[10] or 0}
              for r in selected_rows]
 
     # attach label sets: human (ordered by rank) and model (above-threshold, by conf)

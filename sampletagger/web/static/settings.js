@@ -1,7 +1,7 @@
 const FIELDS=['library_path','workers','trust_db','no_cache',
-  'label_path','label_panns','gpu_python','redo','limit',
+  'label_path','label_panns','label_clap','gpu_python','redo','limit',
   'analyze_seconds','panns_min_duration','proj_method','proj_n_neighbors','proj_min_dist'];
-const BOOLS=new Set(['trust_db','no_cache','label_path','label_panns']);
+const BOOLS=new Set(['trust_db','no_cache','label_path','label_panns','label_clap']);
 
 function getForm(){
   const d={};
