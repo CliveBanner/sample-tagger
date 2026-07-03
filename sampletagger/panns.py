@@ -75,11 +75,3 @@ def _panns_forward(y, sr, topk=8):
             print(f"[panns] inference failed: {type(e).__name__}: {e}", file=sys.stderr, flush=True)
             _PANNS_WARNED = True
         return None, None, None
-
-
-
-def load_head(device):
-    from panns_inference import AudioTagging, labels as panns_labels
-    at = AudioTagging(checkpoint_path=None, device=device)
-    model = getattr(at.model, 'module', at.model)
-    return model.fc_audioset.eval(), panns_labels

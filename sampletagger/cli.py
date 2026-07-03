@@ -3,7 +3,7 @@ import os
 import time
 from multiprocessing import cpu_count
 from .db import db_connect
-from .stages import run_discover, run_label, run_relabel_panns
+from .stages import run_discover, run_label
 from .sim import sim_cmd
 
 def main():
@@ -28,10 +28,6 @@ def main():
     p_label.add_argument("--classifiers", default="panns")
     p_label.add_argument("--redo", default="")
 
-    p_relabel = sub.add_parser("relabel-panns", parents=[parent], help="Reconstruct raw PANNs label")
-    p_relabel.add_argument("--gpu", action="store_true")
-    p_relabel.add_argument("--batch", type=int, default=4096)
-
     p_sim = sub.add_parser("sim", parents=[parent], help="Find similar samples")
     p_sim.add_argument("query", help="exact path or filename substring")
     p_sim.add_argument("-k", type=int, default=20)
@@ -42,12 +38,10 @@ def main():
         sim_cmd(args)
         return
 
-    con = None if (args.dry_run and args.cmd != "relabel-panns") else db_connect(args.db)
+    con = None if args.dry_run else db_connect(args.db)
     t0 = time.time()
 
-    if args.cmd == "relabel-panns":
-        run_relabel_panns(con, args)
-    elif args.cmd == "discover":
+    if args.cmd == "discover":
         run_discover(con, args, t0)
     elif args.cmd == "label":
         run_label(con, args, t0)

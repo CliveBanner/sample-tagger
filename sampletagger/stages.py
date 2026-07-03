@@ -1,14 +1,9 @@
 import os
 import time
-import json
-import sqlite3
 from multiprocessing import Pool
-from .constants import AUDIO_EXTS, DIM
+from .constants import AUDIO_EXTS
 from .db import db_known_set, db_discover_upsert, db_label_update
 from .workers import discover_one, label_one, _init_label_worker
-from .panns import load_head
-import numpy as np
-import torch
 
 def gather(root):
     if os.path.isfile(root):
@@ -17,87 +12,6 @@ def gather(root):
         for f in files:
             if os.path.splitext(f)[1].lower() in AUDIO_EXTS:
                 yield os.path.join(dp, f)
-
-def run_relabel_panns(con, args):
-    """Reconstruct the raw PANNs label (panns_label/panns_label_conf) for every
-    stored embedding WITHOUT decoding any audio.
-
-    CNN14's clipwise output is exactly sigmoid(fc_audioset(embedding)), and the
-    2048-d embedding is already in the DB, so the whole library is relabeled with
-    a single matrix multiply — no filesystem reads, no librosa, seconds not hours.
-
-    Stores the model's raw output verbatim (527-way AudioSet vocabulary, e.g.
-    "Bass drum", "Music", "Water") — no taxonomy mapping, no thresholding:
-      panns_label / panns_label_conf  top-1 class + sigmoid score
-      panns_topk                      JSON [[label, score], ...] of the top 5
-    Top-1 is often the generic "Music" tag, so the top-5 is what carries the
-    instrument signal. Collapsing to the instrument taxonomy is a later,
-    separately-runnable step.
-    """
-    from panns_inference import AudioTagging, labels as panns_labels
-    TOPK = 5
-
-    device = "cuda" if (args.gpu and torch.cuda.is_available()) else "cpu"
-    print(f"Loading CNN14 classifier head (fc_audioset) on {device} ...", flush=True)
-    at = AudioTagging(checkpoint_path=None, device=device)
-    # On CUDA panns_inference wraps the net in DataParallel; the real module
-    # (and fc_audioset) then lives under .module.
-    model = getattr(at.model, "module", at.model)
-    head = model.fc_audioset.eval()
-
-    # Stream embeddings on a separate read-only connection so the cursor isn't
-    # disturbed by our batched UPDATEs on `con`.
-    rcon = sqlite3.connect(f"file:{args.db}?mode=ro", uri=True)
-    total = rcon.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0]
-    if args.limit:
-        total = min(total, args.limit)
-    con.execute("PRAGMA busy_timeout=30000")
-    print(f"{total} embeddings -> reconstructing PANNs labels (no audio decode)", flush=True)
-
-    BATCH = args.batch
-    n = 0
-    pend_paths, pend_vecs = [], []
-    t0 = time.time()
-
-    def flush(paths, vecs):
-        arr = np.frombuffer(b"".join(vecs), dtype=np.float32).reshape(len(vecs), -1)
-        with torch.no_grad():
-            clip = torch.sigmoid(head(torch.from_numpy(arr).to(device))).cpu().numpy()
-        # top-K class indices per row (unsorted from argpartition, then sorted desc)
-        part = np.argpartition(-clip, TOPK, axis=1)[:, :TOPK]
-        ts = time.time()
-        rows = []
-        for r, p in enumerate(paths):
-            idx = part[r][np.argsort(-clip[r, part[r]])]
-            pairs = [[panns_labels[i], round(float(clip[r, i]), 4)] for i in idx]
-            rows.append((pairs[0][0], pairs[0][1], json.dumps(pairs), ts, p))
-        if not args.dry_run:
-            con.executemany("UPDATE samples SET panns_label=?, panns_label_conf=?, "
-                            "panns_topk=?, ts=? WHERE path=?", rows)
-            con.commit()
-
-    cur = rcon.execute("SELECT path, vec FROM embeddings")
-    for p, v in cur:
-        if v is None or len(v) != DIM * 4:
-            continue
-        pend_paths.append(p)
-        pend_vecs.append(v)
-        n += 1
-        if len(pend_paths) >= BATCH:
-            flush(pend_paths, pend_vecs)
-            pend_paths, pend_vecs = [], []
-            rate = n / (time.time() - t0)
-            print(f"  {n}/{total}  {rate:6.0f}/s", flush=True)
-        if args.limit and n >= args.limit:
-            break
-    if pend_paths:
-        flush(pend_paths, pend_vecs)
-    rcon.close()
-    print(f"\nRelabel done: {n} files in {time.time()-t0:.1f}s "
-          f"({'dry-run, nothing written' if args.dry_run else 'panns_label updated'})",
-          flush=True)
-
-
 
 def run_discover(con, args, t0):
     filelist_cache = args.db + ".filelist"
