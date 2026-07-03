@@ -16,7 +16,9 @@ dependencies = [
     "panns_inference",
     "umap-learn",
     "scikit-learn",
-    "soundfile"
+    "soundfile",
+    "joblib",
+    "laion_clap"
 ]
 
 [tool.setuptools.packages.find]

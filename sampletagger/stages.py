@@ -38,12 +38,17 @@ def run_discover(con, args, t0):
         con.commit()
         print(f"Marked {len(missing)} files as missing.", flush=True)
     
-    # discover new / changed files
+    # discover new / changed files. With --limit, stop comparing once we have
+    # enough — the mtime check stats every known file (slow on the FUSE mount).
     if args.trust_db:
         todo = [p for p in all_files if p not in known]
+        if args.limit:
+            todo = todo[:args.limit]
     else:
         todo = []
         for p in all_files:
+            if args.limit and len(todo) >= args.limit:
+                break
             if p not in known:
                 todo.append(p)
             else:
@@ -54,12 +59,11 @@ def run_discover(con, args, t0):
                         todo.append(p)
                 except OSError:
                     pass
-    
+
     print(f"{len(all_files)} files on disk, {len(missing)} missing, "
-          f"{len(todo)} new/changed to register.", flush=True)
-    
-    if args.limit:
-        todo = todo[:args.limit]
+          f"{len(todo)} new/changed to register"
+          f"{' (stopped at --limit)' if args.limit and len(todo) >= args.limit else ''}.",
+          flush=True)
     if not todo:
         print("Nothing to do."); return
     
@@ -67,11 +71,11 @@ def run_discover(con, args, t0):
     with Pool(args.workers) as pool:
         for r in pool.imap_unordered(discover_one, todo, chunksize=64):
             n += 1
-            if r["ok"] and not args.dry_run:
+            if not r["ok"]:
+                errors += 1
+            elif not args.dry_run:
                 db_discover_upsert(con, r["path"], r["mtime"], r["size"],
                                    r.get("path_instrument"))
-            else:
-                errors += 1
             if con and n % 500 == 0:
                 con.commit()
             if n % 2000 == 0 or n == len(todo):

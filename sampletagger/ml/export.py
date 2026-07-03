@@ -69,9 +69,17 @@ def get_class_set(db_dir):
     finally:
         con.close()
 
-def get_latest_features(db_dir):
+def get_latest_features(db_dir, feature_model=None):
+    """Latest feature cache FOR THE CONFIGURED MODEL — caches are keyed by
+    (model, embedding count) so switching feature_model can't reuse stale
+    features. Legacy unprefixed files count as panns."""
     import glob
-    files = glob.glob(os.path.join(db_dir, "models", "features_*.npz"))
+    if feature_model is None:
+        feature_model = load_ml_cfg(db_dir).get("feature_model", "panns")
+    files = glob.glob(os.path.join(db_dir, "models", f"features_{feature_model}_*.npz"))
+    if feature_model == "panns":
+        files += [f for f in glob.glob(os.path.join(db_dir, "models", "features_*.npz"))
+                  if f.split("features_")[-1].split(".")[0].isdigit()]
     if not files:
         return None
     return sorted(files, key=lambda f: int(f.split("_")[-1].split(".")[0]))[-1]
@@ -134,7 +142,9 @@ def run_export(args):
             print("No embeddings found.")
             return
 
-        cache_path = os.path.join(db_dir, "models", f"features_{n}.npz")
+        cfg = load_ml_cfg(db_dir)
+        feature_model = cfg.get("feature_model", "panns")
+        cache_path = os.path.join(db_dir, "models", f"features_{feature_model}_{n}.npz")
         
         if os.path.exists(cache_path) and not args.force:
             print(f"Loaded features from cache: {cache_path}")
@@ -153,9 +163,6 @@ def run_export(args):
                 "is_val": row[5] or 0
             }
 
-        # Load correct features based on ML params
-        cfg = load_ml_cfg(db_dir)
-        feature_model = cfg.get("feature_model", "panns")
         print(f"Exporting features from sidecar model: {feature_model}")
         
         t0 = time.time()

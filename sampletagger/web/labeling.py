@@ -33,6 +33,8 @@ def label_api(path, labels):
     bad = [l for l in labels if l not in valid]
     if bad:
         return {"ok": False, "msg": f"unknown instrument(s): {', '.join(bad)}"}
+    if not state.valid_sample(path):
+        return {"ok": False, "msg": "unknown path"}
     primary = labels[0] if labels else None
     ts = time.time()
     con = sqlite3.connect(state.DB, timeout=10)

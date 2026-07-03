@@ -72,6 +72,17 @@ function updateClock(){
 }
 setInterval(updateClock,1000);
 
+let METRICS=null;
+async function fetchMetrics(){
+  try{
+    const m=await fetch('/api/ml/metrics').then(r=>r.json());
+    METRICS=(m||[]).filter(x=>x.macro_f1!=null).slice(-10).map(x=>({
+      label:new Date(x.ts*1000).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+' '+x.version.split('_v').pop().slice(-4),
+      n:Math.round(x.macro_f1*1000)/10, val_n:x.val_n}));
+  }catch(e){METRICS=[];}
+}
+fetchMetrics();setInterval(fetchMetrics,60000);
+
 async function tick(){
   if(Object.keys(COLORS).length===0){try{COLORS=await(await fetch('/api/colors')).json()}catch(e){}}
   let s; try{s=await (await fetch('/api/stats')).json()}catch(e){return}
@@ -107,6 +118,8 @@ async function tick(){
     classifierCard('Human labels', cov.human, s.human_dist||[], '#f92672', 'unlabeled')+
     (cov.model ? classifierCard('Model predictions', cov.model, s.model_dist||[], '#e6db74', 'no prediction') : '')+
     (s.model_conf_hist && s.model_conf_hist.length ? card('Model confidence', bars(s.model_conf_hist)) : '')+
+    (METRICS&&METRICS.length?card('Model quality — val macro F1 (%) per training run',
+      `<div class=muted style="font-size:12px;margin-bottom:8px">frozen eval set (${METRICS[METRICS.length-1].val_n} files) · higher is better</div>`+bars(METRICS)):'')+
     classifierCard('PANNs (mapped)', cov.panns, s.panns_dist||[], '#ae81ff', 'pending')+
     card('PANNs raw (AudioSet)', pie(s.panns_raw_dist||[]))+
     classifierCard('Path',  cov.path,  s.path_dist||[],  '#a6e22e', 'no path hint')+

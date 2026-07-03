@@ -38,7 +38,7 @@ def main():
         sim_cmd(args)
         return
 
-    con = None if args.dry_run else db_connect(args.db)
+    con = db_connect(args.db)   # writes are guarded by --dry-run in the stages
     t0 = time.time()
 
     if args.cmd == "discover":
