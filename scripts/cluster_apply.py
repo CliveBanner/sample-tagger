@@ -60,6 +60,12 @@ def main():
                 WHERE cluster_id=? AND human_instrument IS NULL
             """, (label, cid))
             n = cur.rowcount
+            # keep the multi-label truth table in sync (rank-1 rows)
+            con.execute("""
+                INSERT OR IGNORE INTO sample_labels (path, label, rank, ts)
+                SELECT path, human_instrument, 1, strftime('%s','now')
+                FROM samples WHERE cluster_id=? AND human_instrument=?
+            """, (cid, label))
             total_written += n
             if n:
                 print(f"cluster {cid}: {n} × {label} ({conf})")

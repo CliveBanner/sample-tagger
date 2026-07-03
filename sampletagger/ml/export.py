@@ -6,15 +6,58 @@ import time
 from ..config import load_config
 from ..constants import DIM
 from .. import embeddings
-def load_ml_cfg(db_dir):
-    """Read the [ml] section of config.json next to the DB. A missing file or bad
-    JSON falls back to defaults ({}); any other error propagates rather than being
-    silently swallowed."""
+ML_PARAM_DEFAULTS = {"weak_weight": 0.007, "bulk_weight": 0.5, "conf_threshold": 0.6, "target_precision": 0.9, "feature_model": "panns"}
+WEAK_MAP_DEFAULTS = {"snare": "snare_clap", "clap": "snare_clap",
+                     "hihat": "hats_cymbals", "cymbal": "hats_cymbals",
+                     "fx": "sfx", "drums": "perc", "808": "bass"}
+
+
+def ensure_ml_tables(labels_db, db_dir=None):
+    """Create/seed ml_params + weak_map in labels.db. On first run, values are
+    imported from a legacy config.json "ml" section if one exists, else defaults."""
+    legacy = {}
+    if db_dir:
+        try:
+            with open(os.path.join(db_dir, "config.json")) as f:
+                legacy = json.load(f).get("ml", {})
+        except (OSError, ValueError):
+            pass
+    con = sqlite3.connect(labels_db, timeout=10)
     try:
-        with open(os.path.join(db_dir, "config.json")) as f:
-            return json.load(f).get("ml", {})
-    except (OSError, ValueError):
-        return {}
+        con.execute("CREATE TABLE IF NOT EXISTS ml_params (key TEXT PRIMARY KEY, value TEXT)")
+        con.execute("CREATE TABLE IF NOT EXISTS weak_map (old_label TEXT PRIMARY KEY, new_label TEXT)")
+        
+        params = {**ML_PARAM_DEFAULTS,
+                  **{k: v for k, v in legacy.items() if k != "weak_label_map"}}
+        con.executemany("INSERT OR IGNORE INTO ml_params(key,value) VALUES(?,?)",
+                        [(k, json.dumps(v)) for k, v in params.items()])
+                        
+        if con.execute("SELECT COUNT(*) FROM weak_map").fetchone()[0] == 0:
+            wmap = legacy.get("weak_label_map") or WEAK_MAP_DEFAULTS
+            con.executemany("INSERT INTO weak_map(old_label,new_label) VALUES(?,?)",
+                            list(wmap.items()))
+        con.commit()
+    finally:
+        con.close()
+
+
+def load_ml_cfg(db_dir):
+    """ML parameters + weak-label map from labels.db (next to samples.db).
+    Values are JSON-encoded in ml_params; weak_map rows become cfg["weak_label_map"]."""
+    labels_db = os.path.join(db_dir, "labels.db")
+    ensure_ml_tables(labels_db, db_dir)
+    con = sqlite3.connect(f"file:{labels_db}?mode=ro", uri=True, timeout=10)
+    try:
+        cfg = {}
+        for k, v in con.execute("SELECT key, value FROM ml_params"):
+            try:
+                cfg[k] = json.loads(v)
+            except ValueError:
+                cfg[k] = v
+        cfg["weak_label_map"] = dict(con.execute("SELECT old_label, new_label FROM weak_map"))
+        return cfg
+    finally:
+        con.close()
 
 def get_class_set(db_dir):
     labels_db = os.path.join(db_dir, "labels.db")
@@ -60,6 +103,21 @@ def load_labels(db, paths):
         "is_val": np.array(is_val, dtype=np.int8),
     }
 
+def load_label_sets(db):
+    """Human label SETS (multi-label truth) from sample_labels: path → [labels],
+    ordered by rank (rank 1 = dominant)."""
+    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        sets = {}
+        for p, l in con.execute("SELECT path, label FROM sample_labels ORDER BY rank"):
+            sets.setdefault(p, []).append(l)
+        return sets
+    except sqlite3.OperationalError:
+        return {}
+    finally:
+        con.close()
+
+
 def run_export(args):
     """
     Read embeddings and labels from the DB.
@@ -95,8 +153,13 @@ def run_export(args):
                 "is_val": row[5] or 0
             }
 
+        # Load correct features based on ML params
+        cfg = load_ml_cfg(db_dir)
+        feature_model = cfg.get("feature_model", "panns")
+        print(f"Exporting features from sidecar model: {feature_model}")
+        
         t0 = time.time()
-        emb_paths, emb_mat = embeddings.load(args.db, dtype=np.float32, mmap=False)
+        emb_paths, emb_mat = embeddings.load(args.db, dtype=np.float32, mmap=False, model=feature_model)
         
         path_to_row = {p: i for i, p in enumerate(emb_paths)}
         paths, human, weak_path, weak_panns, label_source, is_val = [], [], [], [], [], []

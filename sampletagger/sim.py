@@ -64,7 +64,24 @@ def fetch_meta(db, paths):
         except (ValueError, TypeError):
             return None
 
-    return {r[0]: dict(instrument=r[1], sample_type=r[2], bpm=r[3],
+    # label sets (multi-label truth + model output); tables may not exist on old DBs
+    hsets, msets = {}, {}
+    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        for p, l in con.execute(f"SELECT path, label FROM sample_labels "
+                                f"WHERE path IN ({qs}) ORDER BY rank", paths):
+            hsets.setdefault(p, []).append(l)
+        for p, l, c in con.execute(f"SELECT path, label, conf FROM model_labels "
+                                   f"WHERE path IN ({qs}) ORDER BY conf DESC", paths):
+            msets.setdefault(p, []).append([l, round(c, 3)])
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        con.close()
+
+    return {r[0]: dict(human_labels=hsets.get(r[0], []),
+                       model_labels=msets.get(r[0], []),
+                       instrument=r[1], sample_type=r[2], bpm=r[3],
                        key=r[4], duration_s=r[5], source=r[6],
                        path_instrument=r[7], panns_instrument=r[8],
                        panns_conf=round(r[9], 3) if r[9] else None,

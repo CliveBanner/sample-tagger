@@ -20,84 +20,103 @@ def label_type_api(path, sample_type):
         con.close()
     return {"ok": True, "path": path, "sample_type": sample_type}
 
-def label_api(path, instrument):
+def label_api(path, labels):
+    """Save a human label SET (ordered: labels[0] = dominant). The set is the truth
+    (sample_labels table); human_instrument is kept as the rank-1 projection for
+    map/stats/queue queries. Empty list clears everything."""
     if not path:
         return {"ok": False, "msg": "no path"}
-    if instrument and instrument not in state.get_labels():
-        return {"ok": False, "msg": f"unknown instrument: {instrument}"}
+    labels = [l for l in (labels or []) if l]
+    seen = set()
+    labels = [l for l in labels if not (l in seen or seen.add(l))]   # dedupe, keep order
+    valid = set(state.get_labels())
+    bad = [l for l in labels if l not in valid]
+    if bad:
+        return {"ok": False, "msg": f"unknown instrument(s): {', '.join(bad)}"}
+    primary = labels[0] if labels else None
+    ts = time.time()
     con = sqlite3.connect(state.DB, timeout=10)
     try:
+        con.execute("DELETE FROM sample_labels WHERE path=?", (path,))
+        con.executemany("INSERT INTO sample_labels (path, label, rank, ts) VALUES (?,?,?,?)",
+                        [(path, l, i + 1, ts) for i, l in enumerate(labels)])
         con.execute(
-            """UPDATE samples SET 
-                 human_instrument=?, 
-                 label_source=?, 
+            """UPDATE samples SET
+                 human_instrument=?,
+                 label_source=?,
                  ts=?,
                  instrument = COALESCE(?, model_instrument, panns_instrument, path_instrument),
-                 source = CASE 
-                    WHEN ? IS NOT NULL AND ? != '' THEN 'human'
+                 source = CASE
+                    WHEN ? IS NOT NULL THEN 'human'
                     WHEN model_instrument IS NOT NULL THEN 'model'
                     WHEN panns_instrument IS NOT NULL THEN 'panns'
                     WHEN path_instrument IS NOT NULL THEN 'path'
                     ELSE 'none' END
                WHERE path=?""",
-            (instrument or None, ("single" if instrument else None), time.time(), 
-             instrument or None, instrument or None, instrument or None, path))
+            (primary, ("single" if primary else None), ts,
+             primary, primary, path))
         con.commit()
     finally:
         con.close()
     with state.cache_lock:
         state._MAP = None
         state._CLUSTERS = None
-    return {"ok": True, "path": path, "instrument": instrument}
+    return {"ok": True, "path": path, "labels": labels}
 
-def _bulk_label(paths, instrument, source, only_unlabeled=True):
-    if not paths:
+def _bulk_label(paths, labels, source, only_unlabeled=True):
+    """Bulk-apply a label SET (labels[0] = primary) to paths. Selects the affected
+    paths first so sample_labels rows are written for exactly the rows updated."""
+    labels = [l for l in (labels or []) if l]
+    if not paths or not labels:
         return 0
+    primary = labels[0]
     con = sqlite3.connect(state.DB, timeout=20)
-    n = 0
     try:
         ts = time.time()
+        qs = ",".join("?" * len(paths))
         if only_unlabeled:
-            cur = con.executemany(
-                """UPDATE samples SET 
-                     human_instrument=?, 
-                     label_source=?, 
-                     ts=?,
-                     instrument=?,
-                     source='human'
-                   WHERE path=? AND (human_instrument IS NULL OR human_instrument='')""",
-                [(instrument, source, ts, instrument, p) for p in paths])
+            targets = [r[0] for r in con.execute(
+                f"SELECT path FROM samples WHERE path IN ({qs}) "
+                "AND (human_instrument IS NULL OR human_instrument='')", paths)]
         else:
-            cur = con.executemany(
-                """UPDATE samples SET 
-                     human_instrument=?, 
-                     label_source=?, 
-                     ts=?,
-                     instrument = COALESCE(?, model_instrument, panns_instrument, path_instrument),
-                     source = CASE 
-                        WHEN ? IS NOT NULL AND ? != '' THEN 'human'
-                        WHEN model_instrument IS NOT NULL THEN 'model'
-                        WHEN panns_instrument IS NOT NULL THEN 'panns'
-                        WHEN path_instrument IS NOT NULL THEN 'path'
-                        ELSE 'none' END
-                   WHERE path=?""",
-                [(instrument, source, ts, instrument, instrument, instrument, p) for p in paths])
-        n = cur.rowcount
+            targets = [r[0] for r in con.execute(
+                f"SELECT path FROM samples WHERE path IN ({qs})", paths)]
+        if not targets:
+            return 0
+        con.executemany(
+            """UPDATE samples SET
+                 human_instrument=?, label_source=?, ts=?,
+                 instrument=?, source='human'
+               WHERE path=?""",
+            [(primary, source, ts, primary, p) for p in targets])
+        # a bulk apply is a new judgment: replace each target's whole set
+        con.executemany("DELETE FROM sample_labels WHERE path=?",
+                        [(p,) for p in targets])
+        con.executemany(
+            "INSERT INTO sample_labels (path, label, rank, ts) VALUES (?,?,?,?)",
+            [(p, l, i + 1, ts) for p in targets for i, l in enumerate(labels)])
         con.commit()
+        return len(targets)
     finally:
         con.close()
-    return max(n, 0)
 
-def label_propagate(paths, instrument):
-    if not paths or not instrument:
-        return {"ok": False, "msg": "missing paths or instrument"}
-    if instrument not in state.get_labels():
-        return {"ok": False, "msg": f"unknown instrument: {instrument}"}
-    n = _bulk_label(paths, instrument, "propagate", only_unlabeled=True)
+def label_propagate(paths, labels):
+    """Propagate a full label set to similar files — near-duplicates of a
+    crossover sound get the whole judgment, not just the primary."""
+    if isinstance(labels, str):
+        labels = [labels]
+    labels = [l for l in (labels or []) if l]
+    if not paths or not labels:
+        return {"ok": False, "msg": "missing paths or labels"}
+    valid = set(state.get_labels())
+    bad = [l for l in labels if l not in valid]
+    if bad:
+        return {"ok": False, "msg": f"unknown instrument(s): {', '.join(bad)}"}
+    n = _bulk_label(paths, labels, "propagate", only_unlabeled=True)
     with state.cache_lock:
         state._MAP = None
         state._CLUSTERS = None
-    return {"ok": True, "n": n, "instrument": instrument}
+    return {"ok": True, "n": n, "labels": labels}
 
 def label_cluster(cid, instrument, exclude=None):
     if instrument not in state.get_labels():
@@ -110,7 +129,7 @@ def label_cluster(cid, instrument, exclude=None):
             "SELECT path FROM samples WHERE cluster_id=? "
             "AND (human_instrument IS NULL OR human_instrument='')", (cid,)).fetchall()
     targets = [p for (p,) in rows if p not in exclude]
-    n = _bulk_label(targets, instrument, "cluster", only_unlabeled=True)
+    n = _bulk_label(targets, [instrument], "cluster", only_unlabeled=True)
     with state.cache_lock:
         state._MAP = None
         state._CLUSTERS = None
@@ -136,7 +155,7 @@ def label_map(data):
     if not paths:
         return {"ok": False, "msg": "no valid indices"}
         
-    n = _bulk_label(paths, instrument, "map", only_unlabeled=(mode == "unlabeled"))
+    n = _bulk_label(paths, [instrument], "map", only_unlabeled=(mode == "unlabeled"))
     with state.cache_lock:
         state._MAP = None
         state._CLUSTERS = None
@@ -183,9 +202,19 @@ def delete_label(name):
     cleared = 0
     scon = sqlite3.connect(state.DB, timeout=20)
     try:
+        ts = time.time()
+        scon.execute("DELETE FROM sample_labels WHERE label=?", (name,))
+        # samples whose primary was the deleted label: promote the next-ranked
+        # label to primary, or clear entirely if the set is now empty
         cur = scon.execute(
-            "UPDATE samples SET human_instrument=NULL, label_source=NULL, ts=? "
-            "WHERE human_instrument=?", (time.time(), name))
+            """UPDATE samples SET
+                 human_instrument = (SELECT label FROM sample_labels sl
+                                     WHERE sl.path=samples.path ORDER BY rank LIMIT 1),
+                 label_source = CASE WHEN EXISTS (SELECT 1 FROM sample_labels sl
+                                                  WHERE sl.path=samples.path)
+                                     THEN label_source ELSE NULL END,
+                 ts=?
+               WHERE human_instrument=?""", (ts, name))
         cleared = cur.rowcount
         scon.commit()
     finally:
@@ -201,16 +230,18 @@ def review_queue(mode="unified", limit=80):
         
     params = ()
     if mode == "gold":
-        try:
-            with open(os.path.join(state.HERE, "gold_candidates.txt")) as f:
-                paths = [l.strip() for l in f if l.strip()]
-            if not paths:
-                return {"items": [], "total": 0}
-            qs = ",".join("?" * len(paths))
-            where = f"path IN ({qs}) AND (human_instrument IS NULL OR human_instrument='')"
-            params = tuple(paths)
-        except OSError:
-            return {"items": [], "total": 0}
+        where = "gold_candidate=1 AND (human_instrument IS NULL OR human_instrument='')"
+    elif mode.startswith("class_"):
+        # a file belongs to "Target: X" if X is confidently predicted (model_labels)
+        # OR if X's head is the file's most uncertain one (model_margin_label) —
+        # the latter is where a label teaches that head the most, and those rows
+        # sort to the top automatically since the global margin IS that head's.
+        where = ("status != 'missing' AND source != 'human' "
+                 "AND (human_instrument IS NULL OR human_instrument='') "
+                 "AND (model_margin_label = ? OR EXISTS "
+                 "     (SELECT 1 FROM model_labels ml "
+                 "      WHERE ml.path = samples.path AND ml.label = ?))")
+        params = (mode[len("class_"):], mode[len("class_"):])
     else:
         where = "status != 'missing' AND source != 'human' AND (human_instrument IS NULL OR human_instrument='')"
     
@@ -219,29 +250,43 @@ def review_queue(mode="unified", limit=80):
             return {"items": [], "total": 0}
         total = con.execute(f"SELECT COUNT(*) FROM samples WHERE {where}", params).fetchone()[0]
         
+        # Disagreement must compare in ONE vocabulary: weak classifiers still emit
+        # old-taxonomy names (tonal/drums/hihat/...), so map them through weak_map
+        # before comparing. wm = weak_map + identity for valid labels; anything
+        # unmappable (e.g. 'tonal') maps to NULL and can't create fake disagreement.
+        wm = dict(state.get_weakmap())
+        for l in state.get_labels():
+            wm.setdefault(l, l)
+        wm_values = ",".join(["(?,?)"] * len(wm)) or "(NULL,NULL)"
+        wm_params = [x for kv in wm.items() for x in kv]
         query = f"""
+        WITH wm(old, new) AS (VALUES {wm_values})
         SELECT path, path_instrument, panns_instrument, panns_conf,
                audio_instrument, duration_s, sample_type, human_sample_type, human_instrument,
                model_instrument, model_conf, rating, cluster_id, cluster_l1
         FROM (
-          SELECT *, ROW_NUMBER() OVER (
-            PARTITION BY COALESCE(model_instrument, 'unknown') 
+          SELECT samples.*,
+                 wp.new AS m_panns, wa.new AS m_audio,
+                 ROW_NUMBER() OVER (
+            PARTITION BY COALESCE(model_instrument, 'unknown')
             ORDER BY COALESCE(model_margin, model_conf, 1.0) - (
-              CASE WHEN 
-                    (path_instrument IS NOT NULL AND panns_instrument IS NOT NULL AND path_instrument != panns_instrument)
-                 OR (path_instrument IS NOT NULL AND audio_instrument IS NOT NULL AND path_instrument != audio_instrument)
-                 OR (panns_instrument IS NOT NULL AND audio_instrument IS NOT NULL AND panns_instrument != audio_instrument)
+              CASE WHEN
+                    (path_instrument IS NOT NULL AND wp.new IS NOT NULL AND path_instrument != wp.new)
+                 OR (path_instrument IS NOT NULL AND wa.new IS NOT NULL AND path_instrument != wa.new)
+                 OR (wp.new IS NOT NULL AND wa.new IS NOT NULL AND wp.new != wa.new)
                  OR (model_instrument IS NOT NULL AND path_instrument IS NOT NULL AND model_instrument != path_instrument)
               THEN 2.0 ELSE 0.0 END
             ) ASC
           ) as rn
           FROM samples
+          LEFT JOIN wm wp ON wp.old = samples.panns_instrument
+          LEFT JOIN wm wa ON wa.old = samples.audio_instrument
           WHERE {where}
         )
         WHERE rn <= 100
         ORDER BY rn ASC
         """
-        rows = con.execute(query, params).fetchall()
+        rows = con.execute(query, tuple(wm_params) + params).fetchall()
 
     ix = get_sim()
     ix.ensure(max_age=0)
@@ -276,6 +321,29 @@ def review_queue(mode="unified", limit=80):
               "model_conf": round(r[10], 3) if r[10] else None,
               "rating": r[11] or 0}
              for r in selected_rows]
+
+    # attach label sets: human (ordered by rank) and model (above-threshold, by conf)
+    lbl_sets, mdl_sets = {}, {}
+    all_paths = [it["path"] for it in items]
+    if all_paths:
+        qs2 = ",".join("?" * len(all_paths))
+        with state.ro() as con:
+            if con:
+                try:
+                    for p, l in con.execute(
+                            f"SELECT path, label FROM sample_labels WHERE path IN ({qs2}) "
+                            "ORDER BY rank", all_paths):
+                        lbl_sets.setdefault(p, []).append(l)
+                    for p, l, c in con.execute(
+                            f"SELECT path, label, conf FROM model_labels WHERE path IN ({qs2}) "
+                            "ORDER BY conf DESC", all_paths):
+                        mdl_sets.setdefault(p, []).append([l, c])
+                except sqlite3.OperationalError:
+                    pass
+    for it in items:
+        it["human_labels"] = lbl_sets.get(
+            it["path"], [it["human_instrument"]] if it["human_instrument"] else [])
+        it["model_labels"] = mdl_sets.get(it["path"], [])
 
     grain_ids = {r[12] for r in selected_rows if r[12] is not None}
     grain_lbl, fam_lbl = {}, []

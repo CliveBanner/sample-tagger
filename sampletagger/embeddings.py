@@ -3,13 +3,15 @@ import sqlite3
 import numpy as np
 from .constants import DIM
 
-def sidecar_paths(db_path):
+def sidecar_paths(db_path, model="panns"):
     """Return (mat_npy_path, paths_txt_path) for the external embedding files."""
     base = db_path[:-3] if db_path.endswith(".db") else db_path
+    if model == "clap":
+        return base + ".clap.npy", base + ".clap.paths"
     return base + ".emb.npy", base + ".emb.paths"
 
-def load(db, *, dtype=np.float16, mmap=True):
-    mat_file, paths_file = sidecar_paths(db)
+def load(db, *, dtype=np.float16, mmap=True, model="panns"):
+    mat_file, paths_file = sidecar_paths(db, model=model)
     if os.path.isfile(mat_file) and os.path.isfile(paths_file):
         with open(paths_file) as f:
             paths = [line.rstrip("\n") for line in f if line.strip()]

@@ -87,7 +87,13 @@ def stats():
         panns_dist = inst_dist("panns_instrument")
         panns_raw_dist = top_n_with_other("panns_label", 12)
         audio_dist = inst_dist("audio_instrument")
-        human_dist = inst_dist("human_instrument")
+        # human counts come from the label sets so secondary labels are visible
+        try:
+            human_dist = [dict(label=r[0], n=r[1]) for r in state.q(
+                con, "SELECT label, COUNT(*) FROM sample_labels "
+                     "GROUP BY label ORDER BY COUNT(*) DESC")]
+        except sqlite3.OperationalError:
+            human_dist = inst_dist("human_instrument")
         sample_type = inst_dist("sample_type")
         keys = inst_dist("key")
 

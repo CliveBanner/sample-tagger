@@ -22,6 +22,16 @@
 <div class="legend" id="legend"></div>
 </div>
 <div id="side">
+<div id="sideTabs">
+<button class="stab active" data-tab="detail" onclick="switchSideTab('detail')">Detail</button>
+<button class="stab" data-tab="search" onclick="switchSideTab('search')">Search</button>
+</div>
+<div id="tab-search" style="display:none">
+<input id="q2" placeholder="describe a sound… (enter)" style="width:100%;box-sizing:border-box"/>
+<div class="muted" id="searchInfo" style="font-size:11px;margin:4px 0"></div>
+<div id="searchResults" class="muted">describe what you're looking for — e.g. "warm analog pad", "dusty breakbeat"</div>
+</div>
+<div id="tab-detail">
 <h2>Selected</h2><div class="muted" id="sel">tap a point or search</div>
 <audio controls="" id="player" preload="none" style="width:100%;margin-top:8px"></audio>
 <audio id="xplayer" preload="none" style="display:none"></audio>
@@ -46,6 +56,7 @@
 </div>
 <button disabled="" id="btnSim" style="margin-top:10px;width:100%">🔍 Find similar</button>
 <h2 style="margin-top:10px">Similar</h2><div class="muted" id="hits">—</div>
+</div>
 </div>
 </div>
 <div id="toast"></div>

@@ -6,6 +6,7 @@ from .predict import run_predict
 from .report import run_report
 from .cluster import run_cluster
 from .pipeline import run_pipeline
+from .clap import run_clap_embed, run_clap_eval
 def main():
     ap = argparse.ArgumentParser(description="Machine Learning pipeline for sample-tagger")
     subparsers = ap.add_subparsers(dest="command", required=True)
@@ -36,6 +37,14 @@ def main():
     p_pipe = subparsers.add_parser("pipeline", help="Run full pipeline (export, train, predict, cluster)")
     p_pipe.add_argument("db", help="Path to samples.db")
 
+    # CLAP pilot / full
+    p_ce = subparsers.add_parser("clap-embed", help="Embed val/train files with CLAP")
+    p_ce.add_argument("db", help="Path to samples.db")
+    p_ce.add_argument("--full", action="store_true", help="Embed all valid files in the DB")
+    
+    p_cv = subparsers.add_parser("clap-eval", help="Evaluate CLAP zero-shot vs trained")
+    p_cv.add_argument("db", help="Path to samples.db")
+
     args = ap.parse_args()
 
     if args.command == "export":
@@ -50,6 +59,10 @@ def main():
         run_cluster(args)
     elif args.command == "pipeline":
         run_pipeline(args)
+    elif args.command == "clap-embed":
+        run_clap_embed(args)
+    elif args.command == "clap-eval":
+        run_clap_eval(args)
     else:
         ap.print_help()
         sys.exit(1)

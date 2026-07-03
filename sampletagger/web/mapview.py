@@ -62,6 +62,32 @@ def propagate_candidates(path, k=24):
     items.sort(key=lambda d: -d["score"])
     return {"items": items}
 
+def search_text_api(query, k=24):
+    if not query:
+        return {"query": query, "hits": [], "n": 0}
+    
+    from ..ml.clap import get_clap
+    import numpy as np
+    model = get_clap()
+    emb = model.get_text_embedding([query], use_tensor=False)
+    q_vec = np.mean(emb, axis=0)
+    q_vec = q_vec / np.linalg.norm(q_vec)
+    
+    from ..embeddings import load as load_emb
+    paths, X = load_emb(state.DB, dtype=np.float32, mmap=True, model="clap")
+    if len(paths) == 0:
+        return {"query": query, "hits": [], "n": 0}
+        
+    scores = X @ q_vec
+    
+    top_indices = np.argsort(scores)[::-1][:k]
+    hits = [(paths[i], scores[i]) for i in top_indices]
+    
+    meta = simlib.fetch_meta(state.DB, [p for p, _ in hits])
+    return {"query": query, "n": len(paths),
+            "hits": [dict(path=p, name=os.path.basename(p), score=round(float(s), 3),
+                          **meta.get(p, {})) for p, s in hits]}
+
 def build_map():
     with state.cache_lock:
         proj_db = state.DB + ".proj"

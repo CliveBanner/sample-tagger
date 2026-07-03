@@ -110,6 +110,15 @@ def get_labels():
         if not con: return []
         return [r[0] for r in con.execute("SELECT name FROM labels ORDER BY name").fetchall()]
 
+def get_weakmap():
+    """old-taxonomy name → current label (weak_map table, seeded by ml.export)."""
+    with ro(LABELS_DB) as con:
+        if not con: return {}
+        try:
+            return dict(con.execute("SELECT old_label, new_label FROM weak_map"))
+        except sqlite3.OperationalError:
+            return {}
+
 def get_colors():
     labels = get_labels()
     out = {}

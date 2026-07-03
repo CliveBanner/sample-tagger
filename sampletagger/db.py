@@ -8,7 +8,9 @@ SAMPLE_COLUMNS = {
     "audio_instrument": "TEXT", "panns_label": "TEXT", "panns_label_conf": "REAL", "panns_topk": "TEXT",
     "human_sample_type": "TEXT", "human_instrument": "TEXT",
     "model_instrument": "TEXT", "model_conf": "REAL", "model_version": "TEXT", "model_margin": "REAL",
+    "model_margin_label": "TEXT",
     "is_val": "INTEGER DEFAULT 0",
+    "gold_candidate": "INTEGER DEFAULT 0",
     "rating": "INTEGER DEFAULT 0",
     "label_source": "TEXT",
     "cluster_id": "INTEGER", "cluster_d": "REAL",
@@ -21,6 +23,21 @@ CREATE INDEX IF NOT EXISTS idx_type  ON samples(sample_type);
 CREATE TABLE IF NOT EXISTS embeddings (
   path TEXT PRIMARY KEY, dim INTEGER, vec BLOB
 );
+CREATE TABLE IF NOT EXISTS metrics (
+  version TEXT PRIMARY KEY, ts REAL, val_n INTEGER, macro_f1 REAL,
+  per_class_f1 TEXT, coverage TEXT, notes TEXT
+);
+-- Multi-label truth: human label sets (rank 1 = dominant; drives the
+-- human_instrument projection column) and the model's per-class output.
+CREATE TABLE IF NOT EXISTS sample_labels (
+  path TEXT, label TEXT, rank INTEGER DEFAULT 1, ts REAL,
+  PRIMARY KEY (path, label)
+);
+CREATE TABLE IF NOT EXISTS model_labels (
+  path TEXT, label TEXT, conf REAL,
+  PRIMARY KEY (path, label)
+);
+CREATE INDEX IF NOT EXISTS idx_slbl ON sample_labels(label);
 """
 
 def db_connect(path):

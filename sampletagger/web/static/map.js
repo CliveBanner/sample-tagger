@@ -248,7 +248,11 @@ function showSel(p){
     p.path_instrument  ?`<tr><td style="color:var(--dim);padding-right:8px">path</td><td>${p.path_instrument}</td></tr>`:'',
     p.panns_instrument ?`<tr><td style="color:var(--dim);padding-right:8px">PANNs</td><td>${p.panns_instrument}${conf}</td></tr>`:'',
     p.audio_instrument ?`<tr><td style="color:var(--dim);padding-right:8px">audio</td><td>${p.audio_instrument}</td></tr>`:'',
-    p.model_instrument ?`<tr><td style="color:var(--dim);padding-right:8px">model</td><td>${p.model_instrument}${p.model_conf?` <span style="color:var(--dim);font-size:10px">${(p.model_conf*100).toFixed(0)}%</span>`:''}</td></tr>`:'',
+    (p.model_labels&&p.model_labels.length)
+      ?`<tr><td style="color:var(--dim);padding-right:8px">model</td><td>${p.model_labels.map(x=>`${x[0]} <span style="color:var(--dim);font-size:10px">${(x[1]*100).toFixed(0)}%</span>`).join(' · ')}</td></tr>`
+      :(p.model_instrument?`<tr><td style="color:var(--dim);padding-right:8px">model</td><td>${p.model_instrument}${p.model_conf?` <span style="color:var(--dim);font-size:10px">${(p.model_conf*100).toFixed(0)}%</span>`:''}</td></tr>`:''),
+    (p.human_labels&&p.human_labels.length>1)
+      ?`<tr><td style="color:var(--dim);padding-right:8px">human</td><td>${p.human_labels.join(' + ')}</td></tr>`:'',
     p.panns_label      ?`<tr><td style="color:var(--dim);padding-right:8px">raw</td><td title="${rawTip}">${p.panns_label}${rawConf}</td></tr>`:'',
   ].join('');
   const srcCol2=SRC_COLOR[p.source]||'var(--dim)';
@@ -283,9 +287,75 @@ async function loadSimilar(qs){
 function showSelName(path){const el=document.getElementById('sel');
   el.classList.remove('muted');
   el.innerHTML='<div style="word-break:break-all">'+path.split('/').pop()+'</div>';}
+
+/* ---------- side tabs & search tab ---------- */
+
+function switchSideTab(name){
+  document.getElementById('tab-detail').style.display=(name==='detail')?'':'none';
+  document.getElementById('tab-search').style.display=(name==='search')?'':'none';
+  document.querySelectorAll('#sideTabs .stab').forEach(b=>
+    b.classList.toggle('active',b.dataset.tab===name));
+}
+
+let _playingRow=null;
+function playFromRow(el,path){
+  // reuse the main player (keeps the crossfade); mark the active row
+  _selPath=path;showSelName(path);playPath(path);
+  if(_playingRow)_playingRow.textContent='▶';
+  el.textContent='■';_playingRow=el;
+}
+
+function searchLocate(path){
+  const idx=M&&M.paths?M.paths.indexOf(path):-1;
+  if(idx>=0){sel=idx;scrollToSel();inspect(idx);}     // full detail incl. labels
+  else{_selPath=path;showSelName(path);}              // not on the map (yet)
+  switchSideTab('detail');
+}
+
+function searchRow(x){
+  const hl=(x.human_labels||[]).map(l=>`<span class=pill style="background:#a6e22e22;border:1px solid #a6e22e;color:#a6e22e">${l}</span>`).join('');
+  const ml=(x.model_labels||[]).slice(0,2).map(([l,c])=>`<span class=pill style="background:#66d9ef22;border:1px solid #66d9ef55;color:#66d9ef">${l} ${(c*100).toFixed(0)}%</span>`).join('');
+  return `<div class="hit srow" data-p="${encodeURIComponent(x.path)}">
+    <button class=hit-play title=audition>▶</button>
+    <span class=s>${x.score}</span><span class=srow-name>${x.name}</span>
+    <div class=srow-meta>${hl}${ml}
+      <span class=muted>${x.sample_type||''} ${x.duration_s?x.duration_s.toFixed(1)+'s':''} ${x.bpm?x.bpm+'bpm':''} ${x.key||''} ${x.source?'· '+x.source:''}</span></div>
+    </div>`;
+}
+
+async function loadTextSearch(qs){
+  switchSideTab('search');
+  const h=document.getElementById('searchResults');
+  h.innerHTML='<span class=muted>…</span>';
+  const d=await(await fetch('/api/search_text?k=24&'+qs)).json();
+  document.getElementById('searchInfo').textContent=`${(d.hits||[]).length} hits · ${(d.n||0).toLocaleString()} files indexed`;
+  if(!d.hits || d.hits.length===0){h.innerHTML='<span class=muted>no match</span>';return;}
+  h.classList.remove('muted');
+  h.innerHTML=d.hits.map(searchRow).join('');
+  _playingRow=null;
+
+  // highlight all hits on the map, but don't hijack selection or audio
+  selIdx.clear();
+  if(M&&M.paths)d.hits.forEach(hit=>{const i=M.paths.indexOf(hit.path);if(i>=0)selIdx.add(i);});
+  updateBatchPanel();
+  draw();
+
+  h.querySelectorAll('.srow').forEach(el=>{
+    const path=decodeURIComponent(el.dataset.p);
+    el.querySelector('.hit-play').onclick=(e)=>{e.stopPropagation();playFromRow(e.target,path);};
+    el.onclick=()=>searchLocate(path);
+  });
+}
+
+function runSearch(v){
+  if(!v)return;
+  if(v.includes('/')||v.includes('\\'))loadSimilar('q='+encodeURIComponent(v));
+  else{document.getElementById('q2').value=v;loadTextSearch('q='+encodeURIComponent(v));}
+}
 document.getElementById('q').addEventListener('keydown',e=>{
-  if(e.key==='Enter'&&e.target.value.trim())
-    loadSimilar('q='+encodeURIComponent(e.target.value.trim()));});
+  if(e.key==='Enter')runSearch(e.target.value.trim());});
+document.getElementById('q2').addEventListener('keydown',e=>{
+  if(e.key==='Enter')runSearch(e.target.value.trim());});
 const VIEW_FIELDS=[['instrument','resolved'],['human','human'],['model','model'],
   ['path','path'],['panns','PANNs'],['audio','audio'],['family','sonic family']];
 const PROV=[[0,'single'],[1,'cluster'],[2,'map'],[3,'propagate'],[4,'llm'],[5,'none']];
