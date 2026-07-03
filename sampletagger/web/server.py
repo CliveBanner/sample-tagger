@@ -34,8 +34,6 @@ class H(BaseHTTPRequestHandler):
             self.serve_static("map.html")
         elif route == "/review":
             self.serve_static("review.html")
-        elif route == "/clusters":
-            self.serve_static("clusters.html")
         elif route == "/settings":
             self.serve_static("settings.html")
         elif route.startswith("/static/"):

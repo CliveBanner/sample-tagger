@@ -121,7 +121,7 @@ def build_map():
                         "FROM projection p JOIN samples s ON s.path=p.path").fetchall()
             except sqlite3.OperationalError:
                 rows = []
-            from .clusters import sonic_family_labels
+            from .sonic import sonic_family_labels
             fam_labels = sonic_family_labels(con)
             
     colors_dict = state.get_colors()
@@ -178,7 +178,7 @@ def point_api(i):
     path = m["paths"][i]
     meta = simlib.fetch_meta(state.DB, [path]).get(path, {})
     with state.ro() as con:
-        from .clusters import sonic_for
+        from .sonic import sonic_for
         sonic = sonic_for(con, path) if con else None
     return dict(path=path, name=os.path.basename(path), sonic=sonic, **meta)
 

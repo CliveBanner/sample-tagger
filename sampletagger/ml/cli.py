@@ -4,7 +4,6 @@ from .export import run_export
 from .train import run_train
 from .predict import run_predict
 from .report import run_report
-from .cluster import run_cluster
 from .pipeline import run_pipeline
 from .clap import run_clap_embed, run_clap_eval
 def main():
@@ -29,12 +28,9 @@ def main():
     p_rep.add_argument("db", help="Path to samples.db")
 
     # Cluster
-    p_clu = subparsers.add_parser("cluster", help="Over-cluster embeddings for bulk review")
-    p_clu.add_argument("db", help="Path to samples.db")
-    p_clu.add_argument("--size", type=int, default=0, help="Target avg samples per cluster (default 40)")
 
     # Pipeline
-    p_pipe = subparsers.add_parser("pipeline", help="Run full pipeline (export, train, predict, cluster)")
+    p_pipe = subparsers.add_parser("pipeline", help="Run full pipeline (export, train, predict)")
     p_pipe.add_argument("db", help="Path to samples.db")
 
     # CLAP pilot / full
@@ -55,8 +51,6 @@ def main():
         run_predict(args)
     elif args.command == "report":
         run_report(args)
-    elif args.command == "cluster":
-        run_cluster(args)
     elif args.command == "pipeline":
         run_pipeline(args)
     elif args.command == "clap-embed":

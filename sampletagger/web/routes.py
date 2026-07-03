@@ -5,7 +5,7 @@ import urllib.parse
 from . import state
 from . import runs
 from . import labeling
-from . import clusters
+from . import sonic
 from . import mapview
 from . import stats
 from . import gold
@@ -105,11 +105,9 @@ GET_ROUTES = {
     "/api/similar": lambda req: mapview.similar_api((_qs(req).get("path") or _qs(req).get("q") or [""])[0], int((_qs(req).get("k") or ["24"])[0])),
     "/api/search_text": lambda req: mapview.search_text_api((_qs(req).get("q") or [""])[0], int((_qs(req).get("k") or ["24"])[0])),
     "/api/propagate": lambda req: mapview.propagate_candidates((_qs(req).get("path") or [""])[0], int((_qs(req).get("k") or ["24"])[0])),
-    "/api/clusters": lambda req: clusters.clusters_list((_qs(req).get("mode") or ["value"])[0], int((_qs(req).get("limit") or ["300"])[0])),
-    "/api/sonic/families": clusters.sonic_families,
-    "/api/sonic/grains": lambda req: clusters.sonic_grains(int((_qs(req).get("family") or ["-1"])[0])),
-    "/api/sonic/members": lambda req: clusters.sonic_members(int((_qs(req).get("grain") or ["-1"])[0])),
-    "/api/cluster": lambda req: clusters.cluster_detail(int((_qs(req).get("id") or ["-1"])[0])),
+    "/api/sonic/families": sonic.sonic_families,
+    "/api/sonic/grains": lambda req: sonic.sonic_grains(int((_qs(req).get("family") or ["-1"])[0])),
+    "/api/sonic/members": lambda req: sonic.sonic_members(int((_qs(req).get("grain") or ["-1"])[0])),
     "/api/map": mapview.map_api,
     "/api/point": lambda req: mapview.point_api(int((_qs(req).get("i") or ["-1"])[0])),
     "/api/reproject": mapview.reproject_start,
@@ -134,7 +132,6 @@ POST_ROUTES = {
     "/api/rate": lambda data: labeling.rate_api(data.get("path",""), data.get("rating", 0)),
     "/api/label_propagate": lambda data: labeling.label_propagate(
         data.get("paths", []), data.get("labels") or data.get("instrument","")),
-    "/api/label_cluster": lambda data: labeling.label_cluster(int(data.get("cluster_id", -1)), data.get("instrument",""), data.get("exclude", [])),
     "/api/labels/add": lambda data: labeling.add_label(data.get("name","")),
     "/api/labels/delete": lambda data: labeling.delete_label(data.get("name","")),
     "/api/label_map": lambda data: labeling.label_map(data),
@@ -175,7 +172,7 @@ def handle_get(req, route):
     if route in GET_ROUTES:
         try:
             handler = GET_ROUTES[route]
-            if route in ["/api/review/queue", "/api/similar", "/api/search_text", "/api/propagate", "/api/clusters", "/api/cluster", "/api/point", "/api/reproject_status", "/api/sonic/grains", "/api/sonic/members"]:
+            if route in ["/api/review/queue", "/api/similar", "/api/search_text", "/api/propagate", "/api/point", "/api/reproject_status", "/api/sonic/grains", "/api/sonic/members"]:
                 _json(req, handler(req))
             else:
                 _json(req, handler())

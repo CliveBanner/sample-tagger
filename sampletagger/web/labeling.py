@@ -60,7 +60,6 @@ def label_api(path, labels):
         con.close()
     with state.cache_lock:
         state._MAP = None
-        state._CLUSTERS = None
     return {"ok": True, "path": path, "labels": labels}
 
 def _bulk_label(paths, labels, source, only_unlabeled=True):
@@ -115,25 +114,7 @@ def label_propagate(paths, labels):
     n = _bulk_label(paths, labels, "propagate", only_unlabeled=True)
     with state.cache_lock:
         state._MAP = None
-        state._CLUSTERS = None
     return {"ok": True, "n": n, "labels": labels}
-
-def label_cluster(cid, instrument, exclude=None):
-    if instrument not in state.get_labels():
-        return {"ok": False, "msg": f"unknown instrument: {instrument}"}
-    exclude = set(exclude or [])
-    with state.ro() as con:
-        if not con:
-            return {"ok": False, "msg": "no db"}
-        rows = con.execute(
-            "SELECT path FROM samples WHERE cluster_id=? "
-            "AND (human_instrument IS NULL OR human_instrument='')", (cid,)).fetchall()
-    targets = [p for (p,) in rows if p not in exclude]
-    n = _bulk_label(targets, [instrument], "cluster", only_unlabeled=True)
-    with state.cache_lock:
-        state._MAP = None
-        state._CLUSTERS = None
-    return {"ok": True, "n": n, "instrument": instrument}
 
 def label_map(data):
     indices = data.get("indices", [])
@@ -158,7 +139,6 @@ def label_map(data):
     n = _bulk_label(paths, [instrument], "map", only_unlabeled=(mode == "unlabeled"))
     with state.cache_lock:
         state._MAP = None
-        state._CLUSTERS = None
     return {"ok": True, "n": n, "instrument": instrument}
 
 def rate_api(path, rating):
@@ -221,7 +201,6 @@ def delete_label(name):
         scon.close()
     with state.cache_lock:
         state._MAP = None
-        state._CLUSTERS = None
     return {"ok": True, "cleared": max(cleared, 0)}
 
 def review_queue(mode="unified", limit=80):
@@ -345,7 +324,7 @@ def review_queue(mode="unified", limit=80):
     grain_ids = {r[12] for r in selected_rows if r[12] is not None}
     grain_lbl, fam_lbl = {}, []
     if grain_ids:
-        from .clusters import sonic_family_labels
+        from .sonic import sonic_family_labels
         with state.ro() as con:
             if con:
                 fam_lbl = sonic_family_labels(con)
