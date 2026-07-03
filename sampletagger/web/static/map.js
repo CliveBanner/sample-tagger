@@ -159,6 +159,20 @@ function pick(px,py){let best=-1,bd=16*dpr*16*dpr;
   if(best>=0){sel=best;draw();inspect(best);}
   else { selIdx.clear(); updateBatchPanel(); draw(); }
 }
+function fitToSel(){
+  // pan/zoom the map to the bounding box of the current selection
+  if(!selIdx.size||!M)return;
+  let minx=1,maxx=0,miny=1,maxy=0;
+  for(const i of selIdx){
+    if(M.x[i]<minx)minx=M.x[i]; if(M.x[i]>maxx)maxx=M.x[i];
+    if(M.y[i]<miny)miny=M.y[i]; if(M.y[i]>maxy)maxy=M.y[i];
+  }
+  const spanx=Math.max(maxx-minx,0.02),spany=Math.max(maxy-miny,0.02);
+  scale=Math.min(cv.width/(spanx*1.3*base),cv.height/(spany*1.3*base),40);
+  tx=cv.width/2-((minx+maxx)/2)*base*scale;
+  ty=cv.height/2-(1-(miny+maxy)/2)*base*scale;
+}
+
 function updateBatchPanel() {
   const panel = document.getElementById('batchPanel');
   if(selIdx.size > 0) {
@@ -334,10 +348,11 @@ async function loadTextSearch(qs){
   h.innerHTML=d.hits.map(searchRow).join('');
   _playingRow=null;
 
-  // highlight all hits on the map, but don't hijack selection or audio
+  // select all hits on the map (same set the batch panel acts on) and zoom to them
   selIdx.clear();
   if(M&&M.paths)d.hits.forEach(hit=>{const i=M.paths.indexOf(hit.path);if(i>=0)selIdx.add(i);});
   updateBatchPanel();
+  fitToSel();
   draw();
 
   h.querySelectorAll('.srow').forEach(el=>{
