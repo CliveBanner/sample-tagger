@@ -159,6 +159,15 @@ function pick(px,py){let best=-1,bd=16*dpr*16*dpr;
   if(best>=0){sel=best;draw();inspect(best);}
   else { selIdx.clear(); updateBatchPanel(); draw(); }
 }
+function focusSel(){
+  // center the camera on the selected point (scrollToSel only nudges into view,
+  // which is a no-op when the point is already visible)
+  if(sel<0||!M)return;
+  if(scale<4)scale=4;   // if fully zoomed out, get close enough to see neighbors
+  tx=cv.width/2-M.x[sel]*base*scale;
+  ty=cv.height/2-(1-M.y[sel])*base*scale;
+}
+
 function fitToSel(){
   // pan/zoom the map to the bounding box of the current selection
   if(!selIdx.size||!M)return;
@@ -320,16 +329,16 @@ function playFromRow(el,path){
   _selPath=path;showSelName(path);playPath(path);
   if(_playingRow)_playingRow.textContent='▶';
   el.textContent='■';_playingRow=el;
-  // follow along on the map: ring + pan to the playing sample, stay on this tab
+  // follow along on the map: ring + center camera on the playing sample
   const i=M&&M.paths?M.paths.indexOf(path):-1;
-  if(i>=0){sel=i;scrollToSel();draw();}
+  if(i>=0){sel=i;focusSel();draw();}
 }
 document.getElementById('player').addEventListener('ended',()=>{
   if(_playingRow){_playingRow.textContent='▶';_playingRow=null;}});
 
 function searchLocate(path){
   const idx=M&&M.paths?M.paths.indexOf(path):-1;
-  if(idx>=0){sel=idx;scrollToSel();draw();inspect(idx);}  // full detail incl. labels
+  if(idx>=0){sel=idx;focusSel();draw();inspect(idx);}     // full detail incl. labels
   else{_selPath=path;showSelName(path);}                  // not on the map (yet)
   switchSideTab('detail');
 }
