@@ -109,7 +109,6 @@ async function tick(){
     (s.model_conf_hist && s.model_conf_hist.length ? card('Model confidence', bars(s.model_conf_hist)) : '')+
     classifierCard('PANNs (mapped)', cov.panns, s.panns_dist||[], '#ae81ff', 'pending')+
     card('PANNs raw (AudioSet)', pie(s.panns_raw_dist||[]))+
-    classifierCard('Audio', cov.audio, s.audio_dist||[], '#66d9ef', 'pending')+
     classifierCard('Path',  cov.path,  s.path_dist||[],  '#a6e22e', 'no path hint')+
     card('Sample type',pie(s.sample_type||[]))+
     card('Key distribution',bars(s.keys||[]))+

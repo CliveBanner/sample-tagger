@@ -1,8 +1,7 @@
 const FIELDS=['library_path','workers','trust_db','no_cache',
-  'label_path','label_audio','label_panns','gpu_python','redo','limit',
-  'analyze_seconds','loop_min_sec','loop_bar_tolerance','harmonic_ratio_tonal',
-  'bpm_min','bpm_max','panns_min_duration','proj_method','proj_n_neighbors','proj_min_dist'];
-const BOOLS=new Set(['trust_db','no_cache','label_path','label_audio','label_panns']);
+  'label_path','label_panns','gpu_python','redo','limit',
+  'analyze_seconds','panns_min_duration','proj_method','proj_n_neighbors','proj_min_dist'];
+const BOOLS=new Set(['trust_db','no_cache','label_path','label_panns']);
 
 function getForm(){
   const d={};

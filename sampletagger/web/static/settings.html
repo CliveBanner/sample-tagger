@@ -51,10 +51,6 @@
 <label for="label_path"><b>Path</b> — folder/filename heuristics (instant, no audio decode)</label>
 </div>
 <div class="chk-row" style="margin:2px 0">
-<input id="label_audio" type="checkbox"/>
-<label for="label_audio"><b>Audio</b> — spectral analysis via librosa (medium speed)</label>
-</div>
-<div class="chk-row" style="margin:2px 0">
 <input id="label_panns" type="checkbox"/>
 <label for="label_panns"><b>PANNs</b> — CNN14 neural net (slow, also produces the map embedding)</label>
 </div>
@@ -82,30 +78,7 @@
 <div class="field">
 <label>Analyze seconds</label>
 <input id="analyze_seconds" max="300" min="1" step="0.5" type="number"/>
-<span class="hint">decode up to N s per file for spectral analysis</span>
-</div>
-<div class="field">
-<label>Loop min duration (s)</label>
-<input id="loop_min_sec" max="10" min="0.1" step="0.1" type="number"/>
-<span class="hint">shorter clips → always oneshot</span>
-</div>
-<div class="field">
-<label>Loop bar tolerance</label>
-<input id="loop_bar_tolerance" max="0.5" min="0" step="0.01" type="number"/>
-<span class="hint">fraction of bar; how close to a beat grid counts as aligned</span>
-</div>
-<div class="field">
-<label>Harmonic ratio (tonal)</label>
-<input id="harmonic_ratio_tonal" max="1" min="0" step="0.01" type="number"/>
-<span class="hint">HPSS energy ratio threshold for tonal vs percussive</span>
-</div>
-<div class="field">
-<label>BPM min</label>
-<input id="bpm_min" max="120" min="20" type="number"/>
-</div>
-<div class="field">
-<label>BPM max</label>
-<input id="bpm_max" max="400" min="80" type="number"/>
+<span class="hint">decode up to N s per file for embedding</span>
 </div>
 <div class="field">
 <label>PANNs min duration (s)</label>

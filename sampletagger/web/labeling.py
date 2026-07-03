@@ -266,21 +266,18 @@ def review_queue(mode="unified", limit=80):
                model_instrument, model_conf, rating, cluster_id, cluster_l1
         FROM (
           SELECT samples.*,
-                 wp.new AS m_panns, wa.new AS m_audio,
+                 wp.new AS m_panns,
                  ROW_NUMBER() OVER (
             PARTITION BY COALESCE(model_instrument, 'unknown')
             ORDER BY COALESCE(model_margin, model_conf, 1.0) - (
               CASE WHEN
                     (path_instrument IS NOT NULL AND wp.new IS NOT NULL AND path_instrument != wp.new)
-                 OR (path_instrument IS NOT NULL AND wa.new IS NOT NULL AND path_instrument != wa.new)
-                 OR (wp.new IS NOT NULL AND wa.new IS NOT NULL AND wp.new != wa.new)
                  OR (model_instrument IS NOT NULL AND path_instrument IS NOT NULL AND model_instrument != path_instrument)
               THEN 2.0 ELSE 0.0 END
             ) ASC
           ) as rn
           FROM samples
           LEFT JOIN wm wp ON wp.old = samples.panns_instrument
-          LEFT JOIN wm wa ON wa.old = samples.audio_instrument
           WHERE {where}
         )
         WHERE rn <= 100

@@ -11,17 +11,11 @@ class Config:
     trust_db: bool = True
     no_cache: bool = False
     label_path: bool = False
-    label_audio: bool = False
     label_panns: bool = True
     gpu_python: str = ""
     redo: str = ""
     limit: int = 0
     analyze_seconds: float = 30.0
-    loop_min_sec: float = 0.8
-    loop_bar_tolerance: float = 0.12
-    harmonic_ratio_tonal: float = 0.35
-    bpm_min: int = 60
-    bpm_max: int = 200
     panns_min_duration: float = 1.0
     proj_method: str = "auto"
     proj_n_neighbors: int = 25

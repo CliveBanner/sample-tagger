@@ -176,15 +176,12 @@ def run_label(con, args, t0):
     if "all" in redo_set:
         redo_set = set(classifiers)
     
-    do_audio = "audio" in classifiers
     do_panns = "panns" in classifiers
-    
+
     # build todo: files missing at least one requested classifier result
     where_parts = []
     if "panns" in classifiers and "panns" not in redo_set:
         where_parts.append("panns_instrument IS NULL")
-    if "audio" in classifiers and "audio" not in redo_set:
-        where_parts.append("audio_instrument IS NULL")
     if "path" in classifiers and "path" not in redo_set:
         where_parts.append("path_instrument IS NULL")
     
@@ -205,7 +202,7 @@ def run_label(con, args, t0):
     
     n, errors = 0, 0
     with Pool(args.workers, initializer=_init_label_worker,
-              initargs=(do_audio, do_panns)) as pool:
+              initargs=(do_panns,)) as pool:
         for result in pool.imap_unordered(label_one, todo, chunksize=8):
             n += 1
             if result.get("status") == "error":

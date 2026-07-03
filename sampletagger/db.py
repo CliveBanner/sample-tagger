@@ -80,7 +80,6 @@ def db_label_update(con, path, result, redo_set):
     ts = time.time()
     fields = [
         ("path", "path_instrument", None),
-        ("audio", "audio_instrument", None),
         ("panns", "panns_instrument", "panns_conf")
     ]
     for prefix, inst_col, conf_col in fields:

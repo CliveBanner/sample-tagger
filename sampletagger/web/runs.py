@@ -66,7 +66,6 @@ def run_start(stage):
     elif stage == "label":
         classifiers = []
         if cfg.get("label_path"):  classifiers.append("path")
-        if cfg.get("label_audio"): classifiers.append("audio")
         if cfg.get("label_panns"): classifiers.append("panns")
         if not classifiers:
             return {"ok": False, "msg": "no classifiers selected"}

@@ -5,17 +5,6 @@ from . import state
 from . import runs
 from .mapview import _maybe_evict_sim
 
-def total_target():
-    try:
-        with open(state.RUNLOG) as f:
-            for line in f:
-                m = re.search(r"(\d+) audio files", line)
-                if m:
-                    return int(m.group(1))
-    except OSError:
-        pass
-    return 0
-
 def stats():
     _maybe_evict_sim()
     with state.ro() as con:
@@ -44,11 +33,9 @@ def stats():
         active = state.q(con, "SELECT COUNT(*) FROM samples WHERE status != 'missing'")[0][0]
         cov_row = state.q(con, """
             SELECT COUNT(path_instrument), COUNT(panns_instrument),
-                   COUNT(audio_instrument),
                    COUNT(human_instrument),
                    SUM(CASE WHEN path_instrument IS NOT NULL
-                             OR panns_instrument IS NOT NULL
-                             OR audio_instrument IS NOT NULL THEN 1 ELSE 0 END)
+                             OR panns_instrument IS NOT NULL THEN 1 ELSE 0 END)
             FROM samples WHERE status != 'missing'""")[0]
             
         panns_min_dur = state.load_config().get("panns_min_duration", 1.0)
@@ -59,9 +46,8 @@ def stats():
             "active": active,
             "path":  {"n": cov_row[0], "total": active},
             "panns": {"n": cov_row[1], "total": active},
-            "audio": {"n": cov_row[2], "total": active},
-            "human": {"n": cov_row[3], "total": active},
-            "any":   {"n": cov_row[4] or 0, "total": active},
+            "human": {"n": cov_row[2], "total": active},
+            "any":   {"n": cov_row[3] or 0, "total": active},
         }
 
         def inst_dist(col):
@@ -86,7 +72,6 @@ def stats():
         path_dist  = inst_dist("path_instrument")
         panns_dist = inst_dist("panns_instrument")
         panns_raw_dist = top_n_with_other("panns_label", 12)
-        audio_dist = inst_dist("audio_instrument")
         # human counts come from the label sets so secondary labels are visible
         try:
             human_dist = [dict(label=r[0], n=r[1]) for r in state.q(
@@ -140,7 +125,7 @@ def stats():
             "label_done": prog.get("done", 0), "label_total": total,
             "coverage": coverage,
             "path_dist": path_dist, "panns_dist": panns_dist, "panns_raw_dist": panns_raw_dist,
-            "audio_dist": audio_dist, "human_dist": human_dist, "sample_type": sample_type,
+            "human_dist": human_dist, "sample_type": sample_type,
             "model_dist": model_dist, "model_conf_hist": model_conf_hist,
             "keys": keys, "bpm_hist": bpm_hist, "log_tail": log_tail,
             "sonic_dist": sonic_dist,
