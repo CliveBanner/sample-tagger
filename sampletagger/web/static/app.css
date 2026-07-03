@@ -324,3 +324,6 @@ font-size:12px;margin-bottom:12px;min-height:34px}
 .srow-name{word-break:break-all}
 .srow-meta{margin-top:3px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:11px}
 .srow-meta .pill{padding:1px 6px;border-radius:8px;font-size:10px}
+.srow{padding-left:62px}
+.srow .hit-sim{position:absolute;left:32px;top:8px;width:24px;height:24px;border-radius:50%;border:1px solid #555;background:#1e1f1c;color:#66d9ef;cursor:pointer;padding:0;font-size:12px;line-height:1}
+.srow .hit-sim:hover{border-color:#66d9ef}

@@ -209,7 +209,10 @@ function playPath(path){
 }
 let _selPath=null;
 async function inspect(i){const p=await(await fetch('/api/point?i='+i)).json();
-  _selPath=p.path;showSel(p);playPath(p.path);
+  _selPath=p.path;showSel(p);
+  // don't restart a sample the user is already auditioning (e.g. arriving from search ▶)
+  const a=document.getElementById('player');
+  if(!(!a.paused&&a.src&&a.src.indexOf(encodeURIComponent(p.path))>=0))playPath(p.path);
   document.getElementById('btnSim').disabled=false;
   document.getElementById('hits').innerHTML='<span class=muted>—</span>';}
 document.getElementById('btnSim').onclick=()=>{
@@ -291,13 +294,9 @@ async function loadSimilar(qs){
   const d=await(await fetch('/api/similar?k=24&'+qs)).json();
   if(!d.matched){h.innerHTML='<span class=muted>no match ('+d.n+' indexed)</span>';return;}
   h.classList.remove('muted');
-  h.innerHTML=d.hits.map(x=>`<div class=hit data-p="${encodeURIComponent(x.path)}">
-    <span class=s>${x.score}</span>${x.name}
-    <div class=muted>${x.instrument||''} ${x.sample_type||''} ${x.bpm?x.bpm+'bpm':''} ${x.key||''}</div>
-    </div>`).join('');
-  h.querySelectorAll('.hit').forEach(el=>el.onclick=()=>{
-    const path=decodeURIComponent(el.dataset.p);
-    _selPath=path;showSelName(path);playPath(path);loadSimilar('path='+el.dataset.p);});}
+  h.innerHTML=`<div class=muted style="font-size:11px;margin-bottom:4px">similar to ${d.matched_name}</div>`
+    +d.hits.map(searchRow).join('');
+  bindHitRows(h);}
 function showSelName(path){const el=document.getElementById('sel');
   el.classList.remove('muted');
   el.innerHTML='<div style="word-break:break-all">'+path.split('/').pop()+'</div>';
@@ -340,10 +339,24 @@ function searchRow(x){
   const ml=(x.model_labels||[]).slice(0,2).map(([l,c])=>`<span class=pill style="background:#66d9ef22;border:1px solid #66d9ef55;color:#66d9ef">${l} ${(c*100).toFixed(0)}%</span>`).join('');
   return `<div class="hit srow" data-p="${encodeURIComponent(x.path)}">
     <button class=hit-play title=audition>▶</button>
+    <button class=hit-sim title="find similar to this">≈</button>
     <span class=s>${x.score}</span><span class=srow-name>${x.name}</span>
     <div class=srow-meta>${hl}${ml}
       <span class=muted>${x.sample_type||''} ${x.duration_s?x.duration_s.toFixed(1)+'s':''} ${x.bpm?x.bpm+'bpm':''} ${x.key||''} ${x.source?'· '+x.source:''}</span></div>
     </div>`;
+}
+
+// shared behavior for search + similar hit lists: ▶ toggles playback (map follows),
+// ≈ chains into find-similar explicitly, row click opens the full detail view
+function bindHitRows(container){
+  container.querySelectorAll('.srow').forEach(el=>{
+    const path=decodeURIComponent(el.dataset.p);
+    el.querySelector('.hit-play').onclick=(e)=>{e.stopPropagation();playFromRow(e.target,path);};
+    el.querySelector('.hit-sim').onclick=(e)=>{e.stopPropagation();
+      _selPath=path;showSelName(path);switchSideTab('detail');
+      loadSimilar('path='+encodeURIComponent(path));};
+    el.onclick=()=>searchLocate(path);
+  });
 }
 
 async function loadTextSearch(qs){
@@ -364,11 +377,7 @@ async function loadTextSearch(qs){
   fitToSel();
   draw();
 
-  h.querySelectorAll('.srow').forEach(el=>{
-    const path=decodeURIComponent(el.dataset.p);
-    el.querySelector('.hit-play').onclick=(e)=>{e.stopPropagation();playFromRow(e.target,path);};
-    el.onclick=()=>searchLocate(path);
-  });
+  bindHitRows(h);
 }
 
 function runSearch(v){
