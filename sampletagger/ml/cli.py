@@ -3,7 +3,6 @@ import sys
 from .export import run_export
 from .train import run_train
 from .predict import run_predict
-from .report import run_report
 from .pipeline import run_pipeline
 from .clap import run_clap_embed, run_clap_eval
 def main():
@@ -24,8 +23,6 @@ def main():
     p_pred.add_argument("db", help="Path to samples.db")
     
     # Report
-    p_rep = subparsers.add_parser("report", help="Evaluate accuracy and coverage")
-    p_rep.add_argument("db", help="Path to samples.db")
 
     # Cluster
 
@@ -49,8 +46,6 @@ def main():
         run_train(args)
     elif args.command == "predict":
         run_predict(args)
-    elif args.command == "report":
-        run_report(args)
     elif args.command == "pipeline":
         run_pipeline(args)
     elif args.command == "clap-embed":
