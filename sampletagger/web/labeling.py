@@ -322,7 +322,7 @@ def review_queue(mode="unified", limit=80):
             it["path"], [it["human_instrument"]] if it["human_instrument"] else [])
         it["model_labels"] = mdl_sets.get(it["path"], [])
 
-    grain_ids = {r[12] for r in selected_rows if r[12] is not None}
+    grain_ids = {r[11] for r in selected_rows if r[11] is not None}
     grain_lbl, fam_lbl = {}, []
     if grain_ids:
         from .sonic import sonic_family_labels
@@ -338,7 +338,7 @@ def review_queue(mode="unified", limit=80):
                 except sqlite3.OperationalError:
                     pass
     for it, r in zip(items, selected_rows):
-        g = grain_lbl.get(r[12])
-        f = fam_lbl[r[13]] if (r[13] is not None and 0 <= r[13] < len(fam_lbl)) else None
+        g = grain_lbl.get(r[11])
+        f = fam_lbl[r[12]] if (r[12] is not None and 0 <= r[12] < len(fam_lbl)) else None
         it["sonic"] = {"grain": g, "family": f} if (g or f) else None
     return {"items": items, "total": total}
