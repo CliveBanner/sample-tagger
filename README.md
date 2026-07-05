@@ -1,3 +1,5 @@
+This is a learning project, no professional solution.
+
 # Sample Tagger
 
 A tool for automatically discovering, labeling, and clustering large collections of audio samples. The tagger extracts acoustic features, runs clustering, and provides a rich web interface for manual review, tagging, UMAP visualization, and natural language semantic search.
