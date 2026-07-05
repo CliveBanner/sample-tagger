@@ -12,7 +12,6 @@ LABELS_DB = os.path.join(HERE, "labels.db")
 RUNLOG = os.path.join(HERE, "run.log")
 ML_LOG = os.path.join(HERE, "ml.log")
 CONFIG_FILE = os.path.join(HERE, "config.json")
-START = time.time()
 
 PYTHON = os.path.join(HERE, "venv", "bin", "python")
 if not os.path.isfile(PYTHON):

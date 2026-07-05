@@ -1,7 +1,6 @@
 import os
 import sqlite3
 import time
-import json
 import numpy as np
 from .constants import DIM
 
@@ -57,12 +56,6 @@ def fetch_meta(db, paths):
             f"FROM samples WHERE path IN ({qs})", paths).fetchall()
     finally:
         con.close()
-
-    def _topk(s):
-        try:
-            return json.loads(s) if s else None
-        except (ValueError, TypeError):
-            return None
 
     # label sets (multi-label truth + model output); tables may not exist on old DBs
     hsets, msets = {}, {}

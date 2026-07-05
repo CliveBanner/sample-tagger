@@ -1,6 +1,6 @@
 import os
 import json
-from dataclasses import dataclass, fields, asdict, field
+from dataclasses import dataclass, fields, field
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

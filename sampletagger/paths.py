@@ -17,27 +17,6 @@ _INSTRUMENT_PATTERNS = [
     ("drums",  r"\bdrums?\b|\bbreak(beat)?s?\b|\bgroove\b"),
 ]
 
-ONESHOT_DRUMS = {"kick", "snare", "hihat", "clap", "tom", "cymbal", "808", "perc"}
-DRUM_NONTONAL = {"kick", "snare", "hihat", "clap", "tom", "cymbal", "perc", "drums"}
-FAST_NO_AUDIO = {"kick", "snare", "hihat", "clap", "tom", "cymbal", "perc"}
-
-_SFX_PACKS = {
-    "99sounds halloween sound effects", "aversion - horror sound effects free pack",
-    "bbc sound effects", "ghosthack - advent calendar 2019 day 5 - horror sounds",
-    "ghosthack - free metal screams", "gun sounds", "national library of medicine",
-    "ocean swift - 20th century public domain speeches", "creepy_audio_recordings",
-    "hl2", "system32exe", "raw data", "_random",
-}
-_SFX_RE = re.compile(
-    r"sound ?effects?|\bsfx\b|foley|field.?recording|\bspeeche?s?\b|"
-    r"\bscream|\bgun ?sound|horror sound|\bsiren\b|\binterview\b", re.I)
-
-def is_sfx(path):
-    parts = path.lower().split(os.sep)
-    if any(p in _SFX_PACKS for p in parts):
-        return True
-    return bool(_SFX_RE.search(path))
-
 _LOOP_RE   = re.compile(r"\bloops?\b|\bbreak(beat)?s?\b|groove", re.I)
 _ONESHOT_RE= re.compile(r"\bone[ _-]?shots?\b|\bhits?\b|\bstabs?\b", re.I)
 _BPM_RE    = re.compile(r"(?<!\d)(\d{2,3})\s?bpm\b", re.I)

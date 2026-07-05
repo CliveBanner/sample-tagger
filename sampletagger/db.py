@@ -55,13 +55,6 @@ def db_known_set(con):
     return {r[0]: (r[1], r[2], r[3]) for r in
             con.execute("SELECT path, mtime, size, status FROM samples")}
 
-def upsert(con, table, row, key="path"):
-    cols = list(row)
-    sets = ",".join(f"{c}=excluded.{c}" for c in cols if c != key)
-    con.execute(f"INSERT INTO {table} ({','.join(cols)}) VALUES ({','.join('?'*len(cols))}) "
-                f"ON CONFLICT({key}) DO UPDATE SET {sets}", list(row.values()))
-
-
 def db_discover_upsert(con, path, mtime, size, path_instr):
     """Insert new file or refresh mtime/size. Never overwrites existing labels."""
     con.execute("""

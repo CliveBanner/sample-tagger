@@ -3,8 +3,6 @@ import json
 import sqlite3
 import numpy as np
 import time
-from ..config import load_config
-from ..constants import DIM
 from .. import embeddings
 ML_PARAM_DEFAULTS = {"weak_weight": 0.007, "bulk_weight": 0.5, "conf_threshold": 0.6, "target_precision": 0.9, "feature_model": "panns"}
 WEAK_MAP_DEFAULTS = {"snare": "snare_clap", "clap": "snare_clap",

@@ -1,4 +1,3 @@
-import os
 
 SR = 22050
 DIM = 2048

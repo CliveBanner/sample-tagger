@@ -1,7 +1,6 @@
 import os
 import signal
 import subprocess
-import time
 import re
 from . import state
 

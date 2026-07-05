@@ -69,7 +69,7 @@ def embed_paths(paths, db, out_npz):
             X_new.append(emb)
             paths_new.append(p)
         except Exception as e:
-            pass
+            print(f"[clap] failed to embed {p}: {e}")
             
     if len(X_new) > 0:
         X_final = np.array(X_existing + X_new, dtype=np.float32)

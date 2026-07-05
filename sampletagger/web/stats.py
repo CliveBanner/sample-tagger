@@ -1,6 +1,4 @@
-import time
 import sqlite3
-import re
 from . import state
 from . import runs
 from .mapview import _maybe_evict_sim
@@ -11,24 +9,14 @@ def stats():
         if not con:
             return {"ready": False, "msg": "samples.db not found yet"}
         con.row_factory = sqlite3.Row
-        now = time.time()
         rs = runs.run_status()
         prog = rs.get("progress", {})
         processed = state.q(con, "SELECT COUNT(*) FROM samples WHERE status != 'missing'")[0][0]
-        ok = state.q(con, "SELECT COUNT(*) FROM samples WHERE status='ok'")[0][0]
         errors = state.q(con, "SELECT COUNT(*) FROM samples WHERE status='error'")[0][0]
-        tagged = state.q(con, "SELECT COUNT(*) FROM samples WHERE tagged=1")[0][0]
-        last_ts = state.q(con, "SELECT MAX(ts) FROM samples")[0][0] or 0
 
         total = prog.get("total") or processed
         rate = prog.get("rate") or 0
         eta_min = prog.get("eta_min")
-
-        def dist(col, where=""):
-            return [dict(label=r[0] if r[0] is not None else "—", n=r[1])
-                    for r in state.q(con, f"SELECT {col}, COUNT(*) FROM samples "
-                                    f"WHERE status='ok' {where} GROUP BY {col} "
-                                    f"ORDER BY COUNT(*) DESC")]
 
         active = state.q(con, "SELECT COUNT(*) FROM samples WHERE status != 'missing'")[0][0]
         cov_row = state.q(con, """
@@ -38,10 +26,6 @@ def stats():
                              OR panns_instrument IS NOT NULL THEN 1 ELSE 0 END)
             FROM samples WHERE status != 'missing'""")[0]
             
-        panns_min_dur = state.load_config().get("panns_min_duration", 1.0)
-        panns_skipped = state.q(con, "SELECT COUNT(*) FROM samples "
-                               "WHERE status != 'missing' AND duration_s < ?",
-                          (panns_min_dur,))[0][0]
         coverage = {
             "active": active,
             "path":  {"n": cov_row[0], "total": active},
@@ -56,18 +40,6 @@ def stats():
                 f"WHERE status != 'missing' AND {col} IS NOT NULL "
                 f"GROUP BY {col} ORDER BY n DESC LIMIT 14").fetchall()
             return [{"label": r[0], "n": r[1]} for r in rows]
-
-        def top_n_with_other(col, n):
-            rows = con.execute(
-                f"SELECT {col}, COUNT(*) n FROM samples "
-                f"WHERE status != 'missing' AND {col} IS NOT NULL "
-                f"GROUP BY {col} ORDER BY n DESC").fetchall()
-            if not rows: return []
-            top = [{"label": r[0], "n": r[1]} for r in rows[:n]]
-            other = sum(r[1] for r in rows[n:])
-            if other > 0:
-                top.append({"label": "other", "n": other, "color": "#75715e"})
-            return top
 
         path_dist  = inst_dist("path_instrument")
         panns_dist = inst_dist("panns_instrument")

@@ -2,7 +2,6 @@ import time
 import os
 import sqlite3
 import subprocess
-import sys
 import threading
 from .. import sim as simlib
 from . import state

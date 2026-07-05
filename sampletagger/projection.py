@@ -3,7 +3,6 @@ import os
 import sqlite3
 import time
 import numpy as np
-from .constants import DIM
 from .config import cfg
 from . import embeddings
 def load_embeddings(db, sample=0):
